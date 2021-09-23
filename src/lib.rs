@@ -7,3 +7,5 @@ mod tests {
 }
 
 pub mod model;
+pub mod server;
+pub mod peer;
