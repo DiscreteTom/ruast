@@ -34,11 +34,14 @@ pub enum ServerError {
 
 impl fmt::Display for ServerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            ServerError::PeerNotExist(id) => write!(f, "peer not exist, id={}", id),
-        }
+        // match *self {
+        //     ServerError::PeerNotExist(id) => write!(f, "peer not exist, id={}", id),
+        // }
+        write!(f, "123")
     }
 }
+
+impl Error for ServerError {}
 
 pub trait GameServer<'a> {
     fn add_peer(&self, peer: Box<dyn Peer<'a>>) -> i32;
