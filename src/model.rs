@@ -17,7 +17,7 @@ pub struct PeerMsg<'a> {
 }
 
 pub trait GameServer<'a> {
-    fn add_peer(&self, peer: impl Peer<'a>) -> i32;
+    fn add_peer(&self, peer: Box<dyn Peer>) -> i32;
     fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>>;
     fn stop(&self);
     fn for_each_peer(&self, f: dyn Fn(dyn Peer));
