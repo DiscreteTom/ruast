@@ -1,10 +1,10 @@
-use std::{error::Error, sync::Arc, sync::Weak, time::SystemTime};
+use std::{error::Error, sync::Arc, sync::{Weak, mpsc::Sender}, time::SystemTime};
 
 pub trait Peer<'a> {
     fn write(&self, data: &Arc<&[u8]>) -> Result<(), Box<dyn Error>>;
     fn close(&self) -> Result<(), Box<dyn Error>>;
     fn start(&self);
-    fn activate(&self, id: i32);
+    fn activate(&self, id: i32, msg_sender: Sender<PeerMsg>);
     fn id(&self) -> i32;
     fn set_tag(&self, tag: &str);
     fn tag(&self) -> &'a str;
