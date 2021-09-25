@@ -1,7 +1,7 @@
 use std::{io::Error, sync::Arc, sync::Weak, time::SystemTime};
 
 pub trait Peer<'a> {
-    fn write(&self, data: Arc<&[u8]>) -> Result<(), Error>;
+    fn write(&self, data: &Arc<&[u8]>) -> Result<(), Error>;
     fn close(&self) -> Result<(), Error>;
     fn start(&self);
     fn set_id(&self, id: i32);
@@ -12,7 +12,7 @@ pub trait Peer<'a> {
 
 pub struct PeerMsg<'a> {
     pub peer: Weak<dyn Peer<'a>>,
-    pub data: Box<[u8]>,
+    pub data: Arc<[u8]>,
     pub time: SystemTime,
 }
 
