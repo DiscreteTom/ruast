@@ -26,8 +26,8 @@ pub enum ServerEvent<'a> {
     Stop,
 }
 
-pub trait GameServer {
-    fn add_peer(&self, peer: Box<dyn Peer>) -> i32;
+pub trait GameServer<'a> {
+    fn add_peer(&self, peer: Box<dyn Peer<'a>>) -> i32;
     fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>>;
     fn stop(&self);
     fn for_each_peer(&self, f: dyn Fn(dyn Peer));
