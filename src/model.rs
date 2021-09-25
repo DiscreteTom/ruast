@@ -22,5 +22,5 @@ pub trait GameServer {
     fn append_peer_msg(&self, peer: dyn Peer, data: [u8]);
     fn stop(&self);
     fn for_each_peer(&self, f: dyn Fn(dyn Peer));
-    fn peer(&self, id: i32) -> Result<Weak<dyn Peer>, Error>;
+    fn peer(&self, id: i32) -> Option<Weak<dyn Peer>>;
 }
