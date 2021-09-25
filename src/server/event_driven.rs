@@ -30,6 +30,8 @@ impl<'a> Server<'a> {
     }
 
     pub fn start(&self) {
+        println!("{} is running...", self.name);
+
         // process peer message and wait for stop
         loop {
             match self.event_receiver.recv().unwrap() {
@@ -39,9 +41,9 @@ impl<'a> Server<'a> {
         }
 
         // close all peers
-        self.peers.lock().unwrap().iter().map(|(_, peer)| {
-            peer.close();
-        });
+        for (_, peer) in self.peers.lock().unwrap().iter_mut() {
+            peer.close().unwrap();
+        }
     }
 
     pub fn on_peer_msg(&mut self, f: Box<dyn Fn(PeerMsg)>) -> &Self {
@@ -72,14 +74,20 @@ impl<'a> GameServer<'a> for Server<'a> {
     }
 
     fn stop(&self) {
-        self.event_sender.send(ServerEvent::Stop);
+        self.event_sender.send(ServerEvent::Stop).unwrap();
     }
 
-    fn for_each_peer(&self, f: Box<dyn FnMut((&i32, &Box<dyn Peer>))>) {
-        self.peers.lock().unwrap().iter().map(f);
+    fn for_each_peer(&self, mut f: Box<dyn FnMut(&Box<dyn Peer>)>) {
+        for (_, peer) in self.peers.lock().unwrap().iter_mut() {
+            f(peer)
+        }
     }
 
-    fn apply_to(&self, id: i32, mut f: Box<dyn FnMut(&Box<dyn Peer>)>) -> Result<(), Box<dyn Error>> {
+    fn apply_to(
+        &self,
+        id: i32,
+        mut f: Box<dyn FnMut(&Box<dyn Peer>)>,
+    ) -> Result<(), Box<dyn Error>> {
         match self.peers.lock().unwrap().get(&id) {
             Some(peer) => {
                 f(peer);
