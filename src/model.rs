@@ -16,7 +16,7 @@ pub struct PeerMsg<'a> {
     pub time: SystemTime,
 }
 
-pub trait GameServer<'a> {
+pub trait GameServer {
     fn add_peer(&self, peer: Box<dyn Peer>) -> i32;
     fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>>;
     fn stop(&self);
