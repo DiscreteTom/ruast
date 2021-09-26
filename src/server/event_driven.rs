@@ -53,17 +53,30 @@ impl Server {
 }
 
 impl GameServer for Server {
-  fn add_peer(&self, mut peer: Box<dyn Peer>) -> i32 {
+  fn new_peer(&self, generator: Box<dyn Fn(i32, Sender<ServerEvent>) -> Box<dyn Peer>>) -> i32 {
+    // get new peer id, starts from 0
     let mut peers = self.peers.lock().unwrap();
     let new_peer_id = match peers.keys().max() {
       Some(max) => max + 1,
       None => 0,
     };
-    peer.activate(new_peer_id, self.event_sender.clone());
-    peer.start();
-    peers.insert(new_peer_id, peer);
+    let mut new_peer = generator(new_peer_id, self.event_sender.clone());
+    new_peer.start();
+    peers.insert(new_peer_id, new_peer);
     new_peer_id
   }
+
+  // fn add_peer(&self, mut peer: Box<dyn Peer>) -> i32 {
+  //   let mut peers = self.peers.lock().unwrap();
+  //   let new_peer_id = match peers.keys().max() {
+  //     Some(max) => max + 1,
+  //     None => 0,
+  //   };
+  //   peer.activate(new_peer_id, self.event_sender.clone());
+  //   peer.start();
+  //   peers.insert(new_peer_id, peer);
+  //   new_peer_id
+  // }
 
   fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>> {
     let mut peers = self.peers.lock().unwrap();
