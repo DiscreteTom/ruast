@@ -9,16 +9,16 @@ use std::{
 
 use crate::model::{GameServer, Peer, PeerMsg, ServerError, ServerEvent};
 
-pub struct Server<'a> {
+pub struct Server {
     name: String,
-    peers: Mutex<HashMap<i32, Box<dyn Peer<'a>>>>,
+    peers: Mutex<HashMap<i32, Box<dyn Peer>>>,
     on_peer_msg_handler: Box<dyn Fn(PeerMsg)>,
-    event_sender: Sender<ServerEvent<'a>>,
-    event_receiver: Receiver<ServerEvent<'a>>,
+    event_sender: Sender<ServerEvent>,
+    event_receiver: Receiver<ServerEvent>,
 }
 
-impl<'a> Server<'a> {
-    pub fn new() -> Server<'a> {
+impl Server {
+    pub fn new() -> Server {
         let (event_sender, event_receiver) = mpsc::channel();
         Server {
             name: String::from("EventDrivenServer"),
@@ -52,8 +52,8 @@ impl<'a> Server<'a> {
     }
 }
 
-impl<'a> GameServer<'a> for Server<'a> {
-    fn add_peer(&self, peer: Box<dyn Peer<'a>>) -> i32 {
+impl GameServer for Server {
+    fn add_peer(&self, mut peer: Box<dyn Peer>) -> i32 {
         let mut peers = self.peers.lock().unwrap();
         let new_peer_id = match peers.keys().max() {
             Some(max) => max + 1,
