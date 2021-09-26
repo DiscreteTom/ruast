@@ -8,17 +8,17 @@ use std::{
 use crate::model::{Peer, PeerMsg, ServerEvent};
 
 pub struct StdioPeer {
-  msg_sender: Option<Sender<ServerEvent>>,
+  msg_sender: Sender<ServerEvent>,
   tag: String,
-  id: Option<i32>,
+  id: i32,
 }
 
 impl StdioPeer {
-  pub fn new() -> StdioPeer {
+  pub fn new(id: i32, msg_sender: Sender<ServerEvent>) -> StdioPeer {
     StdioPeer {
-      msg_sender: None,
+      msg_sender,
       tag: String::from("stdio"),
-      id: None,
+      id,
     }
   }
 }
@@ -37,25 +37,17 @@ impl Peer for StdioPeer {
       io::stdin()
         .read_line(&mut line)
         .expect("Failed to read line");
-      match self.msg_sender {
-        // Some(sender) => sender
-        //   .send(ServerEvent::Msg(PeerMsg {
-        //     peer: self,
-        //     data: Arc::new(line.as_bytes()),
-        //     time: SystemTime::now(),
-        //   }))
-        //   .unwrap(),
-        Some(_)=>(),
-        None => continue,
-      }
+      // self.msg_sender
+      //   .send(ServerEvent::Msg(PeerMsg {
+      //     peer: self,
+      //     data: Arc::new(line.as_bytes()),
+      //     time: SystemTime::now(),
+      //   }))
+      //   .unwrap(),
     }
   }
-  fn activate(&mut self, id: i32, msg_sender: Sender<ServerEvent>) {
-    self.id = Some(id);
-    self.msg_sender = Some(msg_sender);
-  }
   fn id(&self) -> i32 {
-    self.id.unwrap()
+    self.id
   }
   fn set_tag(&mut self, tag: &str) {
     self.tag = tag.to_string();
