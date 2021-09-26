@@ -10,7 +10,6 @@ pub trait Peer {
   fn write(&mut self, data: Arc<[u8]>) -> Result<(), Box<dyn Error>>;
   fn close(&mut self) -> Result<(), Box<dyn Error>>;
   fn start(&mut self);
-  fn activate(&mut self, id: i32, msg_sender: Sender<ServerEvent>);
   fn id(&self) -> i32;
   fn set_tag(&mut self, tag: &str);
   fn tag(&self) -> &str;
