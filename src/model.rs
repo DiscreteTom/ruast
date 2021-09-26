@@ -43,7 +43,7 @@ impl fmt::Display for ServerError {
 impl Error for ServerError {}
 
 pub trait GameServer {
-  fn add_peer(&self, peer: Box<dyn Peer>) -> i32;
+  fn new_peer(&self, generator: Box<dyn Fn(i32, Sender<ServerEvent>) -> Box<dyn Peer>>) -> i32;
   fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>>;
   fn stop(&self);
   fn for_each_peer(&self, f: Box<dyn FnMut(&Box<dyn Peer>)>);
