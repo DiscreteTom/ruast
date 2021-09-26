@@ -7,18 +7,18 @@ use std::{
 };
 
 pub trait Peer<'a> {
-    fn write(&self, data: &Arc<&[u8]>) -> Result<(), Box<dyn Error>>;
-    fn close(&self) -> Result<(), Box<dyn Error>>;
-    fn start(&self);
-    fn activate(&self, id: i32, msg_sender: Sender<ServerEvent>);
+    fn write(&mut self, data: Arc<&[u8]>) -> Result<(), Box<dyn Error>>;
+    fn close(&mut self) -> Result<(), Box<dyn Error>>;
+    fn start(&mut self);
+    fn activate(&mut self, id: i32, msg_sender: Sender<ServerEvent<'a>>);
     fn id(&self) -> i32;
-    fn set_tag(&self, tag: &str);
-    fn tag(&'a self) -> &'a str;
+    fn set_tag(&mut self, tag: &str);
+    fn tag(&self) -> &str;
 }
 
 pub struct PeerMsg<'a> {
     pub peer: Weak<dyn Peer<'a>>,
-    pub data: Arc<[u8]>,
+    pub data: Arc<&'a [u8]>,
     pub time: SystemTime,
 }
 
