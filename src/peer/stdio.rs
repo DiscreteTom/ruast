@@ -23,12 +23,13 @@ impl StdioPeer {
   }
 }
 
+impl Drop for StdioPeer {
+  fn drop(&mut self) {}
+}
+
 impl Peer for StdioPeer {
   fn write(&mut self, data: Arc<[u8]>) -> Result<(), Box<dyn Error>> {
     println!("{}", String::from_utf8_lossy(&data));
-    Ok(())
-  }
-  fn close(&mut self) -> Result<(), Box<dyn Error>> {
     Ok(())
   }
   fn start(&mut self) {
