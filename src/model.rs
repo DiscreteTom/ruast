@@ -6,9 +6,8 @@ use std::{
   time::SystemTime,
 };
 
-pub trait Peer {
+pub trait Peer: Drop {
   fn write(&mut self, data: Arc<[u8]>) -> Result<(), Box<dyn Error>>;
-  fn close(&mut self) -> Result<(), Box<dyn Error>>;
   fn start(&mut self);
   fn id(&self) -> i32;
   fn set_tag(&mut self, tag: &str);
