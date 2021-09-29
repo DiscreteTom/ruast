@@ -1,17 +1,10 @@
-use std::{
-  collections::HashMap,
-  error::Error,
-  sync::{
-    mpsc::{self, Receiver, Sender},
-    Mutex,
-  },
-};
+use std::{collections::HashMap, error::Error, sync::{Arc, Mutex, mpsc::{self, Receiver, Sender}}};
 
-use crate::model::{GameServer, Peer, PeerMsg, ServerError, ServerEvent};
+use crate::model::{GameServer, PeerMsg, PeerReader, PeerWriter, ServerError, ServerEvent};
 
 pub struct Server {
   name: String,
-  peers: Mutex<HashMap<i32, Box<dyn Peer>>>,
+  peer_writers: Mutex<HashMap<i32, Arc<dyn PeerWriter>>>,
   on_peer_msg_handler: Box<dyn Fn(PeerMsg)>,
   event_sender: Sender<ServerEvent>,
   event_receiver: Receiver<ServerEvent>,
@@ -22,7 +15,7 @@ impl Server {
     let (event_sender, event_receiver) = mpsc::channel();
     Server {
       name: String::from("EventDrivenServer"),
-      peers: Mutex::new(HashMap::new()),
+      peer_writers: Mutex::new(HashMap::new()),
       on_peer_msg_handler: Box::new(|_| {}),
       event_sender,
       event_receiver,
@@ -39,11 +32,6 @@ impl Server {
         ServerEvent::Stop => break,
       }
     }
-
-    // close all peers
-    for (_, peer) in self.peers.lock().unwrap().iter_mut() {
-      peer.close().unwrap();
-    }
   }
 
   pub fn on_peer_msg(&mut self, f: Box<dyn Fn(PeerMsg)>) -> &Self {
@@ -53,16 +41,19 @@ impl Server {
 }
 
 impl GameServer for Server {
-  fn new_peer(&self, generator: Box<dyn Fn(i32, Sender<ServerEvent>) -> Box<dyn Peer>>) -> i32 {
+  fn new_peer(&self, generator: Box<dyn Fn(i32, Sender<ServerEvent>) -> (Arc<dyn PeerWriter>, Box<dyn PeerReader>)>) -> i32 {
     // get new peer id, starts from 0
-    let mut peers = self.peers.lock().unwrap();
+    let mut peers = self.peer_writers.lock().unwrap();
     let new_peer_id = match peers.keys().max() {
       Some(max) => max + 1,
       None => 0,
     };
-    let mut new_peer = generator(new_peer_id, self.event_sender.clone());
-    new_peer.start();
-    peers.insert(new_peer_id, new_peer);
+    let  (p_writer, mut p_reader) = generator(new_peer_id, self.event_sender.clone());
+
+    // thread pool here
+    p_reader.start();
+    
+    peers.insert(new_peer_id, p_writer);
     new_peer_id
   }
 
@@ -79,7 +70,7 @@ impl GameServer for Server {
   // }
 
   fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>> {
-    let mut peers = self.peers.lock().unwrap();
+    let mut peers = self.peer_writers.lock().unwrap();
     match peers.remove(&id) {
       Some(_) => Ok(()),
       None => Err(Box::new(ServerError::PeerNotExist(id))),
@@ -90,14 +81,14 @@ impl GameServer for Server {
     self.event_sender.send(ServerEvent::Stop).unwrap();
   }
 
-  fn for_each_peer(&self, mut f: Box<dyn FnMut(&Box<dyn Peer>)>) {
-    for (_, peer) in self.peers.lock().unwrap().iter_mut() {
+  fn for_each_peer(&self, mut f: Box<dyn FnMut(&Arc<dyn PeerWriter>)>) {
+    for (_, peer) in self.peer_writers.lock().unwrap().iter_mut() {
       f(peer)
     }
   }
 
-  fn apply_to(&self, id: i32, mut f: Box<dyn FnMut(&Box<dyn Peer>)>) -> Result<(), Box<dyn Error>> {
-    match self.peers.lock().unwrap().get(&id) {
+  fn apply_to(&self, id: i32, mut f: Box<dyn FnMut(&Arc<dyn PeerWriter>)>) -> Result<(), Box<dyn Error>> {
+    match self.peer_writers.lock().unwrap().get(&id) {
       Some(peer) => {
         f(peer);
         Ok(())
