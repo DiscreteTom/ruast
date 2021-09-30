@@ -1,4 +1,9 @@
-use std::{error::Error, io, sync::{Arc, Weak, mpsc::Sender}, time::SystemTime};
+use std::{
+  error::Error,
+  io,
+  sync::{mpsc::Sender, Arc, Weak},
+  time::SystemTime,
+};
 
 use crate::model::{PeerMsg, PeerReader, PeerWriter, ServerEvent};
 
@@ -9,10 +14,6 @@ pub struct StdioPeerWriter {
 pub struct StdioPeerReader {
   msg_sender: Sender<ServerEvent>,
   writer: Arc<StdioPeerWriter>,
-}
-
-impl Drop for StdioPeerWriter {
-  fn drop(&mut self) {}
 }
 
 impl PeerWriter for StdioPeerWriter {
@@ -44,7 +45,6 @@ pub fn new(
   };
   (reader.writer.clone(), Box::new(reader))
 }
-
 
 impl PeerReader for StdioPeerReader {
   fn start(&mut self) {

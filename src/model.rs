@@ -6,7 +6,7 @@ use std::{
   time::SystemTime,
 };
 
-pub trait PeerWriter: Drop {
+pub trait PeerWriter {
   fn write(&mut self, data: Arc<[u8]>) -> Result<(), Box<dyn Error>>;
   fn id(&self) -> i32;
   fn set_tag(&mut self, tag: &str);
