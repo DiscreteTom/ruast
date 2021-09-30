@@ -11,7 +11,7 @@ use crate::model::{GameServer, Peer, PeerMsg, ServerError, ServerEvent};
 
 pub struct EventDrivenServer {
   name: String,
-  peer_writers: Mutex<HashMap<i32, Arc<Mutex<dyn Peer>>>>,
+  peers: Mutex<HashMap<i32, Arc<Mutex<dyn Peer>>>>,
   on_peer_msg_handler: Box<dyn Fn(PeerMsg)>,
   event_sender: Sender<ServerEvent>,
   event_receiver: Receiver<ServerEvent>,
@@ -22,7 +22,7 @@ impl EventDrivenServer {
     let (event_sender, event_receiver) = mpsc::channel();
     EventDrivenServer {
       name: String::from("EventDrivenServer"),
-      peer_writers: Mutex::new(HashMap::new()),
+      peers: Mutex::new(HashMap::new()),
       on_peer_msg_handler: Box::new(|_| {}),
       event_sender,
       event_receiver,
@@ -53,7 +53,7 @@ impl GameServer for EventDrivenServer {
     F: Fn(i32, Sender<ServerEvent>) -> Result<Arc<Mutex<dyn Peer>>, Box<dyn Error>>,
   {
     // get new peer id, starts from 0
-    let mut peers = self.peer_writers.lock().unwrap();
+    let mut peers = self.peers.lock().unwrap();
     let new_peer_id = match peers.keys().max() {
       Some(max) => max + 1,
       None => 0,
@@ -67,7 +67,7 @@ impl GameServer for EventDrivenServer {
   }
 
   fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>> {
-    let mut peers = self.peer_writers.lock().unwrap();
+    let mut peers = self.peers.lock().unwrap();
     match peers.remove(&id) {
       Some(_) => Ok(()),
       None => Err(Box::new(ServerError::PeerNotExist(id))),
@@ -79,7 +79,7 @@ impl GameServer for EventDrivenServer {
   }
 
   fn for_each_peer(&self, mut f: Box<dyn FnMut(&Arc<Mutex<dyn Peer>>)>) {
-    for (_, peer) in self.peer_writers.lock().unwrap().iter_mut() {
+    for (_, peer) in self.peers.lock().unwrap().iter_mut() {
       f(peer)
     }
   }
@@ -89,7 +89,7 @@ impl GameServer for EventDrivenServer {
     id: i32,
     mut f: Box<dyn FnMut(&Arc<Mutex<dyn Peer>>)>,
   ) -> Result<(), Box<dyn Error>> {
-    match self.peer_writers.lock().unwrap().get(&id) {
+    match self.peers.lock().unwrap().get(&id) {
       Some(peer) => {
         f(peer);
         Ok(())
