@@ -48,10 +48,10 @@ impl EventDrivenServer {
 }
 
 impl GameServer for EventDrivenServer {
-  fn new_peer(
-    &self,
-    generator: Box<dyn Fn(i32, Sender<ServerEvent>) -> Result<Arc<dyn Peer>, Box<dyn Error>>>,
-  ) -> Result<i32, Box<dyn Error>> {
+  fn new_peer<F>(&self, generator: F) -> Result<i32, Box<dyn Error>>
+  where
+    F: Fn(i32, Sender<ServerEvent>) -> Result<Arc<dyn Peer>, Box<dyn Error>>,
+  {
     // get new peer id, starts from 0
     let mut peers = self.peer_writers.lock().unwrap();
     let new_peer_id = match peers.keys().max() {
