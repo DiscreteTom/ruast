@@ -13,22 +13,6 @@ pub struct StdioPeer {
   id: i32,
 }
 
-impl Peer for StdioPeer {
-  fn write(&mut self, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>> {
-    println!("{}", String::from_utf8_lossy(&data));
-    Ok(())
-  }
-  fn id(&self) -> i32 {
-    self.id
-  }
-  fn set_tag(&mut self, tag: &str) {
-    self.tag = String::from(tag);
-  }
-  fn tag(&self) -> &str {
-    &self.tag
-  }
-}
-
 impl StdioPeer {
   pub fn new(
     id: i32,
@@ -58,5 +42,21 @@ impl StdioPeer {
       }
     });
     Ok(p)
+  }
+}
+
+impl Peer for StdioPeer {
+  fn write(&mut self, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>> {
+    println!("{}", String::from_utf8_lossy(&data));
+    Ok(())
+  }
+  fn id(&self) -> i32 {
+    self.id
+  }
+  fn set_tag(&mut self, tag: &str) {
+    self.tag = String::from(tag);
+  }
+  fn tag(&self) -> &str {
+    &self.tag
   }
 }
