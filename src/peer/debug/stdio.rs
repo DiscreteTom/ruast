@@ -14,7 +14,7 @@ pub struct StdioPeer {
 }
 
 impl Peer for StdioPeer {
-  fn write(&mut self, data: Arc<[u8]>) -> Result<(), Box<dyn Error>> {
+  fn write(&mut self, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>> {
     println!("{}", String::from_utf8_lossy(&data));
     Ok(())
   }

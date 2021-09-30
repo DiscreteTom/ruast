@@ -7,7 +7,7 @@ use std::{
 };
 
 pub trait Peer: Send + Sync {
-  fn write(&mut self, data: Arc<[u8]>) -> Result<(), Box<dyn Error>>;
+  fn write(&mut self, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>>;
   fn id(&self) -> i32;
   fn set_tag(&mut self, tag: &str);
   fn tag(&self) -> &str;
