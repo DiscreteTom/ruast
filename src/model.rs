@@ -6,19 +6,15 @@ use std::{
   time::SystemTime,
 };
 
-pub trait PeerWriter {
+pub trait Peer: Send + Sync {
   fn write(&mut self, data: Arc<[u8]>) -> Result<(), Box<dyn Error>>;
   fn id(&self) -> i32;
   fn set_tag(&mut self, tag: &str);
   fn tag(&self) -> &str;
 }
 
-pub trait PeerReader {
-  fn start(&mut self);
-}
-
 pub struct PeerMsg {
-  pub peer: Weak<dyn PeerWriter>,
+  pub peer: Weak<dyn Peer>,
   pub data: Arc<Vec<u8>>,
   pub time: SystemTime,
 }
@@ -46,14 +42,10 @@ impl Error for ServerError {}
 pub trait GameServer {
   fn new_peer(
     &self,
-    generator: Box<dyn Fn(i32, Sender<ServerEvent>) -> (Arc<dyn PeerWriter>, Box<dyn PeerReader>)>,
-  ) -> i32;
+    generator: Box<dyn Fn(i32, Sender<ServerEvent>) -> Result<Arc<dyn Peer>, Box<dyn Error>>>,
+  ) -> Result<i32, Box<dyn Error>>;
   fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>>;
   fn stop(&self);
-  fn for_each_peer(&self, f: Box<dyn FnMut(&Arc<dyn PeerWriter>)>);
-  fn apply_to(
-    &self,
-    id: i32,
-    f: Box<dyn FnMut(&Arc<dyn PeerWriter>)>,
-  ) -> Result<(), Box<dyn Error>>;
+  fn for_each_peer(&self, f: Box<dyn FnMut(&Arc<dyn Peer>)>);
+  fn apply_to(&self, id: i32, f: Box<dyn FnMut(&Arc<dyn Peer>)>) -> Result<(), Box<dyn Error>>;
 }

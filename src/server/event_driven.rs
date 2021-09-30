@@ -7,11 +7,11 @@ use std::{
   },
 };
 
-use crate::model::{GameServer, PeerMsg, PeerReader, PeerWriter, ServerError, ServerEvent};
+use crate::model::{GameServer, Peer, PeerMsg, ServerError, ServerEvent};
 
 pub struct Server {
   name: String,
-  peer_writers: Mutex<HashMap<i32, Arc<dyn PeerWriter>>>,
+  peer_writers: Mutex<HashMap<i32, Arc<dyn Peer>>>,
   on_peer_msg_handler: Box<dyn Fn(PeerMsg)>,
   event_sender: Sender<ServerEvent>,
   event_receiver: Receiver<ServerEvent>,
@@ -50,21 +50,20 @@ impl Server {
 impl GameServer for Server {
   fn new_peer(
     &self,
-    generator: Box<dyn Fn(i32, Sender<ServerEvent>) -> (Arc<dyn PeerWriter>, Box<dyn PeerReader>)>,
-  ) -> i32 {
+    generator: Box<dyn Fn(i32, Sender<ServerEvent>) -> Result<Arc<dyn Peer>, Box<dyn Error>>>,
+  ) -> Result<i32, Box<dyn Error>> {
     // get new peer id, starts from 0
     let mut peers = self.peer_writers.lock().unwrap();
     let new_peer_id = match peers.keys().max() {
       Some(max) => max + 1,
       None => 0,
     };
-    let (p_writer, mut p_reader) = generator(new_peer_id, self.event_sender.clone());
 
-    // thread pool here
-    p_reader.start();
-
-    peers.insert(new_peer_id, p_writer);
-    new_peer_id
+    peers.insert(
+      new_peer_id,
+      generator(new_peer_id, self.event_sender.clone())?,
+    );
+    Ok(new_peer_id)
   }
 
   fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>> {
@@ -79,17 +78,13 @@ impl GameServer for Server {
     self.event_sender.send(ServerEvent::Stop).unwrap();
   }
 
-  fn for_each_peer(&self, mut f: Box<dyn FnMut(&Arc<dyn PeerWriter>)>) {
+  fn for_each_peer(&self, mut f: Box<dyn FnMut(&Arc<dyn Peer>)>) {
     for (_, peer) in self.peer_writers.lock().unwrap().iter_mut() {
       f(peer)
     }
   }
 
-  fn apply_to(
-    &self,
-    id: i32,
-    mut f: Box<dyn FnMut(&Arc<dyn PeerWriter>)>,
-  ) -> Result<(), Box<dyn Error>> {
+  fn apply_to(&self, id: i32, mut f: Box<dyn FnMut(&Arc<dyn Peer>)>) -> Result<(), Box<dyn Error>> {
     match self.peer_writers.lock().unwrap().get(&id) {
       Some(peer) => {
         f(peer);
