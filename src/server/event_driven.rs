@@ -11,7 +11,7 @@ use crate::model::{GameServer, Peer, PeerMsg, ServerError, ServerEvent};
 
 pub struct EventDrivenServer {
   name: String,
-  peer_writers: Mutex<HashMap<i32, Arc<dyn Peer>>>,
+  peer_writers: Mutex<HashMap<i32, Arc<Mutex<dyn Peer>>>>,
   on_peer_msg_handler: Box<dyn Fn(PeerMsg)>,
   event_sender: Sender<ServerEvent>,
   event_receiver: Receiver<ServerEvent>,
@@ -50,7 +50,7 @@ impl EventDrivenServer {
 impl GameServer for EventDrivenServer {
   fn new_peer<F>(&self, generator: F) -> Result<i32, Box<dyn Error>>
   where
-    F: Fn(i32, Sender<ServerEvent>) -> Result<Arc<dyn Peer>, Box<dyn Error>>,
+    F: Fn(i32, Sender<ServerEvent>) -> Result<Arc<Mutex<dyn Peer>>, Box<dyn Error>>,
   {
     // get new peer id, starts from 0
     let mut peers = self.peer_writers.lock().unwrap();
@@ -78,13 +78,17 @@ impl GameServer for EventDrivenServer {
     self.event_sender.send(ServerEvent::Stop).unwrap();
   }
 
-  fn for_each_peer(&self, mut f: Box<dyn FnMut(&Arc<dyn Peer>)>) {
+  fn for_each_peer(&self, mut f: Box<dyn FnMut(&Arc<Mutex<dyn Peer>>)>) {
     for (_, peer) in self.peer_writers.lock().unwrap().iter_mut() {
       f(peer)
     }
   }
 
-  fn apply_to(&self, id: i32, mut f: Box<dyn FnMut(&Arc<dyn Peer>)>) -> Result<(), Box<dyn Error>> {
+  fn apply_to(
+    &self,
+    id: i32,
+    mut f: Box<dyn FnMut(&Arc<Mutex<dyn Peer>>)>,
+  ) -> Result<(), Box<dyn Error>> {
     match self.peer_writers.lock().unwrap().get(&id) {
       Some(peer) => {
         f(peer);

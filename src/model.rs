@@ -1,8 +1,8 @@
 use std::{
   error::Error,
   fmt,
-  sync::Arc,
   sync::{mpsc::Sender, Weak},
+  sync::{Arc, Mutex},
   time::SystemTime,
 };
 
@@ -14,7 +14,7 @@ pub trait Peer: Send + Sync {
 }
 
 pub struct PeerMsg {
-  pub peer: Weak<dyn Peer>,
+  pub peer: Weak<Mutex<dyn Peer>>,
   pub data: Arc<Vec<u8>>,
   pub time: SystemTime,
 }
@@ -42,9 +42,13 @@ impl Error for ServerError {}
 pub trait GameServer {
   fn new_peer<F>(&self, generator: F) -> Result<i32, Box<dyn Error>>
   where
-    F: Fn(i32, Sender<ServerEvent>) -> Result<Arc<dyn Peer>, Box<dyn Error>>;
+    F: Fn(i32, Sender<ServerEvent>) -> Result<Arc<Mutex<dyn Peer>>, Box<dyn Error>>;
   fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>>;
   fn stop(&self);
-  fn for_each_peer(&self, f: Box<dyn FnMut(&Arc<dyn Peer>)>);
-  fn apply_to(&self, id: i32, f: Box<dyn FnMut(&Arc<dyn Peer>)>) -> Result<(), Box<dyn Error>>;
+  fn for_each_peer(&self, f: Box<dyn FnMut(&Arc<Mutex<dyn Peer>>)>);
+  fn apply_to(
+    &self,
+    id: i32,
+    f: Box<dyn FnMut(&Arc<Mutex<dyn Peer>>)>,
+  ) -> Result<(), Box<dyn Error>>;
 }

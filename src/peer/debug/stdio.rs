@@ -1,7 +1,7 @@
 use std::{
   error::Error,
   io,
-  sync::{mpsc::Sender, Arc, Weak},
+  sync::{mpsc::Sender, Arc, Mutex, Weak},
   thread,
   time::SystemTime,
 };
@@ -30,12 +30,15 @@ impl Peer for StdioPeer {
 }
 
 impl StdioPeer {
-  pub fn new(id: i32, msg_sender: Sender<ServerEvent>) -> Result<Arc<dyn Peer>, Box<dyn Error>> {
-    let p = Arc::new(StdioPeer {
+  pub fn new(
+    id: i32,
+    msg_sender: Sender<ServerEvent>,
+  ) -> Result<Arc<Mutex<dyn Peer>>, Box<dyn Error>> {
+    let p = Arc::new(Mutex::new(StdioPeer {
       tag: String::from("stdio"),
       id,
-    });
-    let weak_p = Arc::downgrade(&p) as Weak<dyn Peer>;
+    }));
+    let weak_p = Arc::downgrade(&p) as Weak<Mutex<dyn Peer>>;
     thread::spawn(move || {
       loop {
         // read line
