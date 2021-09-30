@@ -1,4 +1,11 @@
-use std::{collections::HashMap, error::Error, sync::{Arc, Mutex, mpsc::{self, Receiver, Sender}}};
+use std::{
+  collections::HashMap,
+  error::Error,
+  sync::{
+    mpsc::{self, Receiver, Sender},
+    Arc, Mutex,
+  },
+};
 
 use crate::model::{GameServer, PeerMsg, PeerReader, PeerWriter, ServerError, ServerEvent};
 
@@ -41,33 +48,24 @@ impl Server {
 }
 
 impl GameServer for Server {
-  fn new_peer(&self, generator: Box<dyn Fn(i32, Sender<ServerEvent>) -> (Arc<dyn PeerWriter>, Box<dyn PeerReader>)>) -> i32 {
+  fn new_peer(
+    &self,
+    generator: Box<dyn Fn(i32, Sender<ServerEvent>) -> (Arc<dyn PeerWriter>, Box<dyn PeerReader>)>,
+  ) -> i32 {
     // get new peer id, starts from 0
     let mut peers = self.peer_writers.lock().unwrap();
     let new_peer_id = match peers.keys().max() {
       Some(max) => max + 1,
       None => 0,
     };
-    let  (p_writer, mut p_reader) = generator(new_peer_id, self.event_sender.clone());
+    let (p_writer, mut p_reader) = generator(new_peer_id, self.event_sender.clone());
 
     // thread pool here
     p_reader.start();
-    
+
     peers.insert(new_peer_id, p_writer);
     new_peer_id
   }
-
-  // fn add_peer(&self, mut peer: Box<dyn Peer>) -> i32 {
-  //   let mut peers = self.peers.lock().unwrap();
-  //   let new_peer_id = match peers.keys().max() {
-  //     Some(max) => max + 1,
-  //     None => 0,
-  //   };
-  //   peer.activate(new_peer_id, self.event_sender.clone());
-  //   peer.start();
-  //   peers.insert(new_peer_id, peer);
-  //   new_peer_id
-  // }
 
   fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>> {
     let mut peers = self.peer_writers.lock().unwrap();
@@ -87,7 +85,11 @@ impl GameServer for Server {
     }
   }
 
-  fn apply_to(&self, id: i32, mut f: Box<dyn FnMut(&Arc<dyn PeerWriter>)>) -> Result<(), Box<dyn Error>> {
+  fn apply_to(
+    &self,
+    id: i32,
+    mut f: Box<dyn FnMut(&Arc<dyn PeerWriter>)>,
+  ) -> Result<(), Box<dyn Error>> {
     match self.peer_writers.lock().unwrap().get(&id) {
       Some(peer) => {
         f(peer);
