@@ -48,10 +48,10 @@ impl EventDrivenServer {
 }
 
 impl GameServer for EventDrivenServer {
-  fn new_peer<F>(&self, generator: F) -> Result<i32, Box<dyn Error>>
-  where
-    F: Fn(i32, Sender<ServerEvent>) -> Result<Arc<Mutex<dyn Peer>>, Box<dyn Error>>,
-  {
+  fn new_peer(
+    &self,
+    generator: fn(i32, Sender<ServerEvent>) -> Result<Arc<Mutex<dyn Peer>>, Box<dyn Error>>,
+  ) -> Result<i32, Box<dyn Error>> {
     // get new peer id, starts from 0
     let mut peers = self.peers.lock().unwrap();
     let new_peer_id = match peers.keys().max() {
@@ -78,20 +78,16 @@ impl GameServer for EventDrivenServer {
     self.event_sender.send(ServerEvent::Stop).unwrap();
   }
 
-  fn for_each_peer(&self, mut f: Box<dyn FnMut(&Arc<Mutex<dyn Peer>>)>) {
-    for (_, peer) in self.peers.lock().unwrap().iter_mut() {
-      f(peer)
+  fn for_each_peer(&self, f: fn(Arc<Mutex<dyn Peer>>)) {
+    for (_, peer) in self.peers.lock().unwrap().iter() {
+      f(peer.clone())
     }
   }
 
-  fn apply_to(
-    &self,
-    id: i32,
-    mut f: Box<dyn FnMut(&Arc<Mutex<dyn Peer>>)>,
-  ) -> Result<(), Box<dyn Error>> {
+  fn apply_to(&self, id: i32, f: fn(Arc<Mutex<dyn Peer>>)) -> Result<(), Box<dyn Error>> {
     match self.peers.lock().unwrap().get(&id) {
       Some(peer) => {
-        f(peer);
+        f(peer.clone());
         Ok(())
       }
       None => Err(Box::new(ServerError::PeerNotExist(id))),

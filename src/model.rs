@@ -40,15 +40,12 @@ impl fmt::Display for ServerError {
 impl Error for ServerError {}
 
 pub trait GameServer {
-  fn new_peer<F>(&self, generator: F) -> Result<i32, Box<dyn Error>>
-  where
-    F: Fn(i32, Sender<ServerEvent>) -> Result<Arc<Mutex<dyn Peer>>, Box<dyn Error>>;
+  fn new_peer(
+    &self,
+    generator: fn(i32, Sender<ServerEvent>) -> Result<Arc<Mutex<dyn Peer>>, Box<dyn Error>>,
+  ) -> Result<i32, Box<dyn Error>>;
   fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>>;
   fn stop(&self);
-  fn for_each_peer(&self, f: Box<dyn FnMut(&Arc<Mutex<dyn Peer>>)>);
-  fn apply_to(
-    &self,
-    id: i32,
-    f: Box<dyn FnMut(&Arc<Mutex<dyn Peer>>)>,
-  ) -> Result<(), Box<dyn Error>>;
+  fn for_each_peer(&self, f: fn(Arc<Mutex<dyn Peer>>));
+  fn apply_to(&self, id: i32, f: fn(Arc<Mutex<dyn Peer>>)) -> Result<(), Box<dyn Error>>;
 }
