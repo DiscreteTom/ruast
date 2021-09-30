@@ -30,7 +30,7 @@ impl Peer for StdioPeer {
 }
 
 impl StdioPeer {
-  pub fn new(id: i32, msg_sender: Sender<ServerEvent>) -> Result<Arc<StdioPeer>, Box<dyn Error>> {
+  pub fn new(id: i32, msg_sender: Sender<ServerEvent>) -> Result<Arc<dyn Peer>, Box<dyn Error>> {
     let p = Arc::new(StdioPeer {
       tag: String::from("stdio"),
       id,
