@@ -12,7 +12,7 @@ use crate::model::{GameServer, Peer, PeerMsg, ServerError, ServerEvent};
 pub struct EventDrivenServer {
   name: String,
   peers: Mutex<HashMap<i32, Arc<Mutex<dyn Peer>>>>,
-  on_peer_msg_handler: Box<dyn Fn(PeerMsg)>,
+  on_peer_msg_handler: fn(PeerMsg),
   event_sender: Sender<ServerEvent>,
   event_receiver: Receiver<ServerEvent>,
 }
@@ -23,7 +23,7 @@ impl EventDrivenServer {
     EventDrivenServer {
       name: String::from("EventDrivenServer"),
       peers: Mutex::new(HashMap::new()),
-      on_peer_msg_handler: Box::new(|_| {}),
+      on_peer_msg_handler: |_| {},
       event_sender,
       event_receiver,
     }
@@ -41,7 +41,7 @@ impl EventDrivenServer {
     }
   }
 
-  pub fn on_peer_msg(&mut self, f: Box<dyn Fn(PeerMsg)>) -> &Self {
+  pub fn on_peer_msg(&mut self, f: fn(PeerMsg)) -> &Self {
     self.on_peer_msg_handler = f;
     self
   }
