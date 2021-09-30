@@ -6,14 +6,6 @@ use std::{
   time::SystemTime,
 };
 
-// pub trait Peer {
-//   fn write(&mut self, data: Arc<[u8]>) -> Result<(), Box<dyn Error>>;
-//   fn start(&mut self);
-//   fn id(&self) -> i32;
-//   fn set_tag(&mut self, tag: &str);
-//   fn tag(&self) -> &str;
-// }
-
 pub trait PeerWriter: Drop {
   fn write(&mut self, data: Arc<[u8]>) -> Result<(), Box<dyn Error>>;
   fn id(&self) -> i32;
@@ -21,7 +13,7 @@ pub trait PeerWriter: Drop {
   fn tag(&self) -> &str;
 }
 
-pub trait PeerReader{
+pub trait PeerReader {
   fn start(&mut self);
 }
 
