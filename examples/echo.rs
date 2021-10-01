@@ -1,4 +1,4 @@
-use rua::{model::GameServer, peer, server::EventDrivenServer};
+use rua::{model::GameServer, peer::StdioPeer, server::EventDrivenServer};
 
 fn main() {
   let mut s = EventDrivenServer::new();
@@ -9,6 +9,6 @@ fn main() {
       .write(msg.data.clone())
       .unwrap();
   });
-  s.new_peer(peer::StdioPeer::new).unwrap();
+  s.new_peer(StdioPeer::new).unwrap();
   s.start();
 }
