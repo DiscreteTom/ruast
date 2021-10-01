@@ -1,14 +1,14 @@
 use std::{
   error::Error,
   fmt,
-  sync::{mpsc::Sender, Weak},
+  sync::Weak,
   sync::{Arc, Mutex},
   time::SystemTime,
 };
 
 pub trait Peer: Send + Sync {
   fn write(&mut self, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>>;
-  fn id(&self) -> i32;
+  fn id(&self) -> &str;
   fn set_tag(&mut self, tag: &str);
   fn tag(&self) -> &str;
 }
@@ -26,13 +26,15 @@ pub enum ServerEvent {
 
 #[derive(Debug)]
 pub enum ServerError {
-  PeerNotExist(i32),
+  PeerNotExist(String),
+  PeerAlreadyExist(String),
 }
 
 impl fmt::Display for ServerError {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    match *self {
+    match self {
       ServerError::PeerNotExist(id) => write!(f, "peer not exist, id={}", id),
+      ServerError::PeerAlreadyExist(id) => write!(f, "peer already exist, id={}", id),
     }
   }
 }
@@ -40,12 +42,9 @@ impl fmt::Display for ServerError {
 impl Error for ServerError {}
 
 pub trait GameServer {
-  fn new_peer(
-    &self,
-    generator: fn(i32, Sender<ServerEvent>) -> Result<Arc<Mutex<dyn Peer>>, Box<dyn Error>>,
-  ) -> Result<i32, Box<dyn Error>>;
-  fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>>;
+  fn add_peer(&self, peer: Arc<Mutex<dyn Peer>>) -> Result<(), Box<dyn Error>>;
+  fn remove_peer(&self, id: &str) -> Result<(), Box<dyn Error>>;
   fn stop(&self);
   fn for_each_peer(&self, f: fn(Arc<Mutex<dyn Peer>>));
-  fn apply_to(&self, id: i32, f: fn(Arc<Mutex<dyn Peer>>)) -> Result<(), Box<dyn Error>>;
+  fn apply_to(&self, id: &str, f: fn(Arc<Mutex<dyn Peer>>)) -> Result<(), Box<dyn Error>>;
 }

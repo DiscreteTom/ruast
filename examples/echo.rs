@@ -1,7 +1,9 @@
+use std::error::Error;
+
 use rua::{model::GameServer, peer::StdioPeer, server::EventDrivenServer};
 
-fn main() {
-  let mut s = EventDrivenServer::new();
+fn main() -> Result<(), Box<dyn Error>> {
+  let (mut s, event_sender) = EventDrivenServer::new();
   s.on_peer_msg(|msg| {
     (msg.peer.upgrade().unwrap())
       .lock()
@@ -9,6 +11,8 @@ fn main() {
       .write(msg.data.clone())
       .unwrap();
   });
-  s.new_peer(StdioPeer::new).unwrap();
+  s.add_peer(StdioPeer::new(String::from("stdio"), event_sender.clone())?)
+    .unwrap();
   s.start();
+  Ok(())
 }

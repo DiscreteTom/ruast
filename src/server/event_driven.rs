@@ -11,22 +11,25 @@ use crate::model::{GameServer, Peer, PeerMsg, ServerError, ServerEvent};
 
 pub struct EventDrivenServer {
   name: String,
-  peers: Mutex<HashMap<i32, Arc<Mutex<dyn Peer>>>>,
+  peers: Mutex<HashMap<String, Arc<Mutex<dyn Peer>>>>,
   on_peer_msg_handler: fn(PeerMsg),
   event_sender: Sender<ServerEvent>,
   event_receiver: Receiver<ServerEvent>,
 }
 
 impl EventDrivenServer {
-  pub fn new() -> EventDrivenServer {
+  pub fn new() -> (EventDrivenServer, Sender<ServerEvent>) {
     let (event_sender, event_receiver) = mpsc::channel();
-    EventDrivenServer {
-      name: String::from("EventDrivenServer"),
-      peers: Mutex::new(HashMap::new()),
-      on_peer_msg_handler: |_| {},
+    (
+      EventDrivenServer {
+        name: String::from("EventDrivenServer"),
+        peers: Mutex::new(HashMap::new()),
+        on_peer_msg_handler: |_| {},
+        event_sender: event_sender.clone(),
+        event_receiver,
+      },
       event_sender,
-      event_receiver,
-    }
+    )
   }
 
   pub fn start(&self) {
@@ -48,26 +51,23 @@ impl EventDrivenServer {
 }
 
 impl GameServer for EventDrivenServer {
-  fn new_peer(
-    &self,
-    generator: fn(i32, Sender<ServerEvent>) -> Result<Arc<Mutex<dyn Peer>>, Box<dyn Error>>,
-  ) -> Result<i32, Box<dyn Error>> {
-    // get new peer id, starts from 0
+  fn add_peer(&self, peer: Arc<Mutex<dyn Peer>>) -> Result<(), Box<dyn Error>> {
     let mut peers = self.peers.lock().unwrap();
-    let new_peer_id = match peers.keys().max() {
-      Some(max) => max + 1,
-      None => 0,
-    };
+    let id = peer.lock().unwrap().id().to_string();
 
-    peers.insert(
-      new_peer_id,
-      generator(new_peer_id, self.event_sender.clone())?,
-    );
-    Ok(new_peer_id)
+    match peers.contains_key(&id) {
+      true => Err(Box::new(ServerError::PeerAlreadyExist(id))),
+      false => {
+        peers.insert(id, peer);
+        Ok(())
+      }
+    }
   }
 
-  fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>> {
+  fn remove_peer(&self, id: &str) -> Result<(), Box<dyn Error>> {
     let mut peers = self.peers.lock().unwrap();
+    let id = id.to_string();
+
     match peers.remove(&id) {
       Some(_) => Ok(()),
       None => Err(Box::new(ServerError::PeerNotExist(id))),
@@ -84,7 +84,9 @@ impl GameServer for EventDrivenServer {
     }
   }
 
-  fn apply_to(&self, id: i32, f: fn(Arc<Mutex<dyn Peer>>)) -> Result<(), Box<dyn Error>> {
+  fn apply_to(&self, id: &str, f: fn(Arc<Mutex<dyn Peer>>)) -> Result<(), Box<dyn Error>> {
+    let id = id.to_string();
+
     match self.peers.lock().unwrap().get(&id) {
       Some(peer) => {
         f(peer.clone());

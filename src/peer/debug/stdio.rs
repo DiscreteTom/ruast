@@ -10,12 +10,12 @@ use crate::model::{Peer, PeerMsg, ServerEvent};
 
 pub struct StdioPeer {
   tag: String,
-  id: i32,
+  id: String,
 }
 
 impl StdioPeer {
   pub fn new(
-    id: i32,
+    id: String,
     msg_sender: Sender<ServerEvent>,
   ) -> Result<Arc<Mutex<dyn Peer>>, Box<dyn Error>> {
     let p = Arc::new(Mutex::new(StdioPeer {
@@ -50,8 +50,8 @@ impl Peer for StdioPeer {
     println!("{}", String::from_utf8_lossy(&data));
     Ok(())
   }
-  fn id(&self) -> i32 {
-    self.id
+  fn id(&self) -> &str {
+    &self.id
   }
   fn set_tag(&mut self, tag: &str) {
     self.tag = String::from(tag);
