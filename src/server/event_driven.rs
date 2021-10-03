@@ -9,21 +9,21 @@ use std::{
 
 use crate::model::{GameServer, Peer, PeerMsg, ServerError, ServerEvent};
 
-pub struct EventDrivenServer {
+pub struct EventDrivenServer<'a> {
   name: String,
   peers: Mutex<HashMap<i32, Box<dyn Peer>>>,
-  on_peer_msg_handler: fn(PeerMsg),
+  on_peer_msg_handler: &'a dyn Fn(PeerMsg),
   tx: Sender<ServerEvent>,
   rx: Receiver<ServerEvent>,
 }
 
-impl EventDrivenServer {
+impl<'a> EventDrivenServer<'a> {
   pub fn new() -> Self {
     let (tx, rx) = mpsc::channel();
     EventDrivenServer {
       name: String::from("EventDrivenServer"),
       peers: Mutex::new(HashMap::new()),
-      on_peer_msg_handler: |_| {},
+      on_peer_msg_handler: &|_| {},
       tx,
       rx,
     }
@@ -45,13 +45,13 @@ impl EventDrivenServer {
     }
   }
 
-  pub fn on_peer_msg(&mut self, f: fn(PeerMsg)) -> &Self {
+  pub fn on_peer_msg(&mut self, f: &'a dyn Fn(PeerMsg)) -> &Self {
     self.on_peer_msg_handler = f;
     self
   }
 }
 
-impl GameServer for EventDrivenServer {
+impl<'a> GameServer for EventDrivenServer<'a> {
   fn add_peer(&self, peer: Box<dyn Peer>) -> Result<(), Box<dyn Error>> {
     match self.peers.lock().unwrap().entry(peer.id()) {
       Entry::Occupied(_) => {
@@ -76,14 +76,14 @@ impl GameServer for EventDrivenServer {
     self.tx.send(ServerEvent::Stop).unwrap();
   }
 
-  fn for_each_peer(&self, f: fn(&Box<dyn Peer>)) {
+  fn for_each_peer<F: Fn(&Box<dyn Peer>)>(&self, f: F) {
     for (_, peer) in self.peers.lock().unwrap().iter() {
       // peer.send(PeerEvent::Apply(f)).unwrap();
       f(peer)
     }
   }
 
-  fn apply_to(&self, id: i32, f: fn(&Box<dyn Peer>)) -> Result<(), Box<dyn Error>> {
+  fn apply_to<F: FnOnce(&Box<dyn Peer>)>(&self, id: i32, f: F) -> Result<(), Box<dyn Error>> {
     match self.peers.lock().unwrap().get(&id) {
       Some(peer) => {
         f(peer);
