@@ -39,8 +39,6 @@ impl EventDrivenServer {
     // process peer message and wait for stop
     loop {
       match self.rx.recv().unwrap() {
-        ServerEvent::AddPeer(id, peer) => self.add_peer(id, peer).unwrap(),
-        ServerEvent::RemovePeer(id) => self.remove_peer(id).unwrap(),
         ServerEvent::PeerMsg(msg) => (self.on_peer_msg_handler)(msg),
         ServerEvent::Stop => break,
       }

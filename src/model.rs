@@ -14,8 +14,6 @@ pub struct PeerMsg {
 }
 
 pub enum ServerEvent {
-  AddPeer(i32, Box<dyn Peer>),
-  RemovePeer(i32),
   PeerMsg(PeerMsg),
   Stop,
 }
