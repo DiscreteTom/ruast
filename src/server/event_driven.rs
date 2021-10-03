@@ -76,15 +76,15 @@ impl<'a> GameServer for EventDrivenServer<'a> {
     self.tx.send(ServerEvent::Stop).unwrap();
   }
 
-  fn for_each_peer<F: Fn(&Box<dyn Peer>)>(&self, f: F) {
-    for (_, peer) in self.peers.lock().unwrap().iter() {
+  fn for_each_peer<F: Fn(&mut Box<dyn Peer>)>(&self, f: F) {
+    for (_, peer) in self.peers.lock().unwrap().iter_mut() {
       // peer.send(PeerEvent::Apply(f)).unwrap();
       f(peer)
     }
   }
 
-  fn apply_to<F: FnOnce(&Box<dyn Peer>)>(&self, id: i32, f: F) -> Result<(), Box<dyn Error>> {
-    match self.peers.lock().unwrap().get(&id) {
+  fn apply_to<F: FnOnce(&mut Box<dyn Peer>)>(&self, id: i32, f: F) -> Result<(), Box<dyn Error>> {
+    match self.peers.lock().unwrap().get_mut(&id) {
       Some(peer) => {
         f(peer);
         Ok(())
