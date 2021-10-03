@@ -52,10 +52,10 @@ impl EventDrivenServer {
 }
 
 impl GameServer for EventDrivenServer {
-  fn add_peer(&self, id: i32, peer: Box<dyn Peer>) -> Result<(), Box<dyn Error>> {
-    match self.peers.lock().unwrap().entry(id) {
+  fn add_peer(&self, peer: Box<dyn Peer>) -> Result<(), Box<dyn Error>> {
+    match self.peers.lock().unwrap().entry(peer.id()) {
       Entry::Occupied(_) => {
-        Err(Box::new(ServerError::PeerAlreadyExist(id)))
+        Err(Box::new(ServerError::PeerAlreadyExist(peer.id())))
         // the new peer will drop itself since it's not moved into the HashMap
       }
       Entry::Vacant(e) => e.insert(peer).start(),
