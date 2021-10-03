@@ -76,19 +76,25 @@ impl<'a> GameServer for EventDrivenServer<'a> {
     self.tx.send(ServerEvent::Stop).unwrap();
   }
 
-  fn for_each_peer<F: Fn(&mut Box<dyn Peer>)>(&self, f: F) {
-    for (_, peer) in self.peers.lock().unwrap().iter_mut() {
+  fn for_each_peer<F>(&self, f: F) -> Vec<(i32, Result<(), Box<dyn Error>>)>
+  where
+    F: Fn(&mut Box<dyn Peer>) -> Result<(), Box<dyn Error>>,
+  {
+    let mut peers = self.peers.lock().unwrap();
+    let mut result = Vec::with_capacity(peers.len());
+    for (id, peer) in peers.iter_mut() {
       // peer.send(PeerEvent::Apply(f)).unwrap();
-      f(peer)
+      result.push((*id, f(peer)));
     }
+    result
   }
 
-  fn apply_to<F: FnOnce(&mut Box<dyn Peer>)>(&self, id: i32, f: F) -> Result<(), Box<dyn Error>> {
+  fn apply_to<F>(&self, id: i32, f: F) -> Result<(), Box<dyn Error>>
+  where
+    F: FnOnce(&mut Box<dyn Peer>) -> Result<(), Box<dyn Error>>,
+  {
     match self.peers.lock().unwrap().get_mut(&id) {
-      Some(peer) => {
-        f(peer);
-        Ok(())
-      }
+      Some(peer) => f(peer),
       None => Err(Box::new(ServerError::PeerNotExist(id))),
     }
   }
