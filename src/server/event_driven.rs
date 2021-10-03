@@ -1,17 +1,15 @@
 use std::{
+  cell::RefCell,
   collections::{hash_map::Entry, HashMap},
   error::Error,
-  sync::{
-    mpsc::{self, Receiver, Sender},
-    Mutex,
-  },
+  sync::mpsc::{self, Receiver, Sender},
 };
 
 use crate::model::{GameServer, Peer, PeerMsg, ServerError, ServerEvent};
 
 pub struct EventDrivenServer<'a> {
   name: String,
-  peers: Mutex<HashMap<i32, Box<dyn Peer>>>,
+  peers: RefCell<HashMap<i32, Box<dyn Peer>>>,
   on_peer_msg_handler: &'a dyn Fn(PeerMsg, &Self),
   tx: Sender<ServerEvent>,
   rx: Receiver<ServerEvent>,
@@ -22,7 +20,7 @@ impl<'a> EventDrivenServer<'a> {
     let (tx, rx) = mpsc::channel();
     EventDrivenServer {
       name: String::from("EventDrivenServer"),
-      peers: Mutex::new(HashMap::new()),
+      peers: RefCell::new(HashMap::new()),
       on_peer_msg_handler: &|_, _| {},
       tx,
       rx,
@@ -53,7 +51,7 @@ impl<'a> EventDrivenServer<'a> {
 
 impl<'a> GameServer for EventDrivenServer<'a> {
   fn add_peer(&self, peer: Box<dyn Peer>) -> Result<(), Box<dyn Error>> {
-    match self.peers.lock().unwrap().entry(peer.id()) {
+    match self.peers.borrow_mut().entry(peer.id()) {
       Entry::Occupied(_) => {
         Err(Box::new(ServerError::PeerAlreadyExist(peer.id())))
         // the new peer will drop itself since it's not moved into the HashMap
@@ -63,7 +61,7 @@ impl<'a> GameServer for EventDrivenServer<'a> {
   }
 
   fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>> {
-    match self.peers.lock().unwrap().remove(&id) {
+    match self.peers.borrow_mut().remove(&id) {
       Some(_) => {
         // the target peer will drop itself since it's moved out of the HashMap
         Ok(())
@@ -80,9 +78,8 @@ impl<'a> GameServer for EventDrivenServer<'a> {
   where
     F: Fn(&mut Box<dyn Peer>) -> Result<(), Box<dyn Error>>,
   {
-    let mut peers = self.peers.lock().unwrap();
-    let mut result = Vec::with_capacity(peers.len());
-    for (id, peer) in peers.iter_mut() {
+    let mut result = Vec::with_capacity(self.peers.borrow().len());
+    for (id, peer) in self.peers.borrow_mut().iter_mut() {
       // peer.send(PeerEvent::Apply(f)).unwrap();
       result.push((*id, f(peer)));
     }
@@ -93,7 +90,7 @@ impl<'a> GameServer for EventDrivenServer<'a> {
   where
     F: FnOnce(&mut Box<dyn Peer>) -> Result<(), Box<dyn Error>>,
   {
-    match self.peers.lock().unwrap().get_mut(&id) {
+    match self.peers.borrow_mut().get_mut(&id) {
       Some(peer) => f(peer),
       None => Err(Box::new(ServerError::PeerNotExist(id))),
     }
