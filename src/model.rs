@@ -1,4 +1,4 @@
-use std::{error::Error, fmt, sync::mpsc::Sender, sync::Arc, time::SystemTime};
+use std::{error::Error, fmt, sync::Arc, time::SystemTime};
 
 pub trait Peer {
   fn write(&mut self, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>>;
