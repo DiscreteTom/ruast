@@ -52,15 +52,22 @@ pub trait GameServer {
   fn write_to(&self, id: i32, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>> {
     self.apply_to(id, |p| p.write(data))
   }
-  fn broadcast<F>(&self, data: Arc<Vec<u8>>, selector: F) -> Vec<(i32, Result<(), Box<dyn Error>>)>
+  fn broadcast<F>(
+    &self,
+    data: Arc<Vec<u8>>,
+    selector: F,
+  ) -> Vec<(i32, Result<bool, Box<dyn Error>>)>
   where
     F: Fn(&Box<dyn Peer>) -> bool,
   {
     self.for_each_peer(|p| {
       if selector(p) {
-        p.write(data.clone())
+        match p.write(data.clone()) {
+          Ok(_) => Ok(true),
+          Err(e) => Err(e),
+        }
       } else {
-        Ok(())
+        Ok(false)
       }
     })
   }
