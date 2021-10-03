@@ -74,14 +74,14 @@ impl<'a> GameServer for EventDrivenServer<'a> {
     self.tx.send(ServerEvent::Stop).unwrap();
   }
 
-  fn for_each_peer<F, T>(&self, f: F) -> Vec<(i32, Result<T, Box<dyn Error>>)>
+  fn for_each_peer<F, T>(&self, f: F) -> HashMap<i32, Result<T, Box<dyn Error>>>
   where
     F: Fn(&mut Box<dyn Peer>) -> Result<T, Box<dyn Error>>,
   {
-    let mut result = Vec::with_capacity(self.peers.borrow().len());
+    let mut result = HashMap::with_capacity(self.peers.borrow().len());
     for (id, peer) in self.peers.borrow_mut().iter_mut() {
       // peer.send(PeerEvent::Apply(f)).unwrap();
-      result.push((*id, f(peer)));
+      result.insert(*id, f(peer));
     }
     result
   }

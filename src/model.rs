@@ -1,4 +1,4 @@
-use std::{error::Error, fmt, sync::Arc, time::SystemTime};
+use std::{collections::HashMap, error::Error, fmt, sync::Arc, time::SystemTime};
 
 pub trait Peer {
   fn write(&mut self, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>>;
@@ -41,7 +41,7 @@ pub trait GameServer {
   fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>>;
   fn stop(&self);
 
-  fn for_each_peer<F, T>(&self, f: F) -> Vec<(i32, Result<T, Box<dyn Error>>)>
+  fn for_each_peer<F, T>(&self, f: F) -> HashMap<i32, Result<T, Box<dyn Error>>>
   where
     F: Fn(&mut Box<dyn Peer>) -> Result<T, Box<dyn Error>>;
 
@@ -56,7 +56,7 @@ pub trait GameServer {
     &self,
     data: Arc<Vec<u8>>,
     selector: F,
-  ) -> Vec<(i32, Result<bool, Box<dyn Error>>)>
+  ) -> HashMap<i32, Result<bool, Box<dyn Error>>>
   where
     F: Fn(&Box<dyn Peer>) -> bool,
   {
