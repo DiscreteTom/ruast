@@ -1,33 +1,29 @@
-use std::{
-  error::Error,
-  fmt,
-  sync::Weak,
-  sync::{Arc, Mutex},
-  time::SystemTime,
-};
+use std::{error::Error, fmt, sync::mpsc::Sender, sync::Arc, time::SystemTime};
 
-pub trait Peer: Send + Sync {
+pub trait Peer {
   fn write(&mut self, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>>;
-  fn id(&self) -> &str;
+  fn id(&self) -> i32;
   fn set_tag(&mut self, tag: &str);
   fn tag(&self) -> &str;
 }
 
 pub struct PeerMsg {
-  pub peer: Weak<Mutex<dyn Peer>>,
+  pub peer_id: i32,
   pub data: Arc<Vec<u8>>,
   pub time: SystemTime,
 }
 
 pub enum ServerEvent {
-  Msg(PeerMsg),
+  AddPeer(i32, Box<dyn Peer>),
+  RemovePeer(i32),
+  PeerMsg(PeerMsg),
   Stop,
 }
 
 #[derive(Debug)]
 pub enum ServerError {
-  PeerNotExist(String),
-  PeerAlreadyExist(String),
+  PeerNotExist(i32),
+  PeerAlreadyExist(i32),
 }
 
 impl fmt::Display for ServerError {
@@ -42,9 +38,9 @@ impl fmt::Display for ServerError {
 impl Error for ServerError {}
 
 pub trait GameServer {
-  fn add_peer(&self, peer: Arc<Mutex<dyn Peer>>) -> Result<(), Box<dyn Error>>;
-  fn remove_peer(&self, id: &str) -> Result<(), Box<dyn Error>>;
+  fn add_peer(&self, id: i32, peer: Box<dyn Peer>) -> Result<(), Box<dyn Error>>;
+  fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>>;
   fn stop(&self);
-  fn for_each_peer(&self, f: fn(Arc<Mutex<dyn Peer>>));
-  fn apply_to(&self, id: &str, f: fn(Arc<Mutex<dyn Peer>>)) -> Result<(), Box<dyn Error>>;
+  fn for_each_peer(&self, f: fn(&dyn Peer));
+  fn apply_to(&self, id: i32, f: fn(&dyn Peer)) -> Result<(), Box<dyn Error>>;
 }
