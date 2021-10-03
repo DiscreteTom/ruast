@@ -58,10 +58,7 @@ impl GameServer for EventDrivenServer {
         Err(Box::new(ServerError::PeerAlreadyExist(id)))
         // the new peer will drop itself since it's not moved into the HashMap
       }
-      Entry::Vacant(e) => {
-        e.insert(peer);
-        Ok(())
-      }
+      Entry::Vacant(e) => e.insert(peer).start(),
     }
   }
 
