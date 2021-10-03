@@ -52,6 +52,9 @@ pub trait GameServer {
   fn write_to(&self, id: i32, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>> {
     self.apply_to(id, |p| p.write(data))
   }
+  fn echo(&self, msg: PeerMsg) -> Result<(), Box<dyn Error>> {
+    self.write_to(msg.peer_id, msg.data)
+  }
   fn broadcast<F>(
     &self,
     data: Arc<Vec<u8>>,
