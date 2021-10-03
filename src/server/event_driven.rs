@@ -98,11 +98,4 @@ impl<'a> GameServer for EventDrivenServer<'a> {
       None => Err(Box::new(ServerError::PeerNotExist(id))),
     }
   }
-
-  fn write_to(&self, id: i32, data: std::sync::Arc<Vec<u8>>) -> Result<(), Box<dyn Error>> {
-    match self.peers.lock().unwrap().get_mut(&id) {
-      None => Err(Box::new(ServerError::PeerNotExist(id))),
-      Some(peer) => peer.write(data),
-    }
-  }
 }

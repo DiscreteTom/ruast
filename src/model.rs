@@ -49,5 +49,7 @@ pub trait GameServer {
   where
     F: FnOnce(&mut Box<dyn Peer>) -> Result<(), Box<dyn Error>>;
 
-  fn write_to(&self, id: i32, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>>;
+  fn write_to(&self, id: i32, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>> {
+    self.apply_to(id, |p| p.write(data))
+  }
 }
