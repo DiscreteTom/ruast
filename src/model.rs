@@ -42,4 +42,5 @@ pub trait GameServer {
   fn stop(&self);
   fn for_each_peer<F: Fn(&mut Box<dyn Peer>)>(&self, f: F);
   fn apply_to<F: FnOnce(&mut Box<dyn Peer>)>(&self, id: i32, f: F) -> Result<(), Box<dyn Error>>;
+  fn write_to(&self, id: i32, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>>;
 }
