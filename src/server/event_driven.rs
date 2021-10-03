@@ -74,9 +74,9 @@ impl<'a> GameServer for EventDrivenServer<'a> {
     self.tx.send(ServerEvent::Stop).unwrap();
   }
 
-  fn for_each_peer<F>(&self, f: F) -> Vec<(i32, Result<(), Box<dyn Error>>)>
+  fn for_each_peer<F, T>(&self, f: F) -> Vec<(i32, Result<T, Box<dyn Error>>)>
   where
-    F: Fn(&mut Box<dyn Peer>) -> Result<(), Box<dyn Error>>,
+    F: Fn(&mut Box<dyn Peer>) -> Result<T, Box<dyn Error>>,
   {
     let mut result = Vec::with_capacity(self.peers.borrow().len());
     for (id, peer) in self.peers.borrow_mut().iter_mut() {
@@ -86,9 +86,9 @@ impl<'a> GameServer for EventDrivenServer<'a> {
     result
   }
 
-  fn apply_to<F>(&self, id: i32, f: F) -> Result<(), Box<dyn Error>>
+  fn apply_to<F, T>(&self, id: i32, f: F) -> Result<T, Box<dyn Error>>
   where
-    F: FnOnce(&mut Box<dyn Peer>) -> Result<(), Box<dyn Error>>,
+    F: FnOnce(&mut Box<dyn Peer>) -> Result<T, Box<dyn Error>>,
   {
     match self.peers.borrow_mut().get_mut(&id) {
       Some(peer) => f(peer),

@@ -41,13 +41,13 @@ pub trait GameServer {
   fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>>;
   fn stop(&self);
 
-  fn for_each_peer<F>(&self, f: F) -> Vec<(i32, Result<(), Box<dyn Error>>)>
+  fn for_each_peer<F, T>(&self, f: F) -> Vec<(i32, Result<T, Box<dyn Error>>)>
   where
-    F: Fn(&mut Box<dyn Peer>) -> Result<(), Box<dyn Error>>;
+    F: Fn(&mut Box<dyn Peer>) -> Result<T, Box<dyn Error>>;
 
-  fn apply_to<F>(&self, id: i32, f: F) -> Result<(), Box<dyn Error>>
+  fn apply_to<F, T>(&self, id: i32, f: F) -> Result<T, Box<dyn Error>>
   where
-    F: FnOnce(&mut Box<dyn Peer>) -> Result<(), Box<dyn Error>>;
+    F: FnOnce(&mut Box<dyn Peer>) -> Result<T, Box<dyn Error>>;
 
   fn write_to(&self, id: i32, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>> {
     self.apply_to(id, |p| p.write(data))
