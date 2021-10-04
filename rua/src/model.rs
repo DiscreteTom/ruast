@@ -20,6 +20,16 @@ pub struct PeerMsg {
   pub time: SystemTime,
 }
 
+impl Clone for PeerMsg {
+  fn clone(&self) -> Self {
+    Self {
+      peer_id: self.peer_id.clone(),
+      data: self.data.clone(),
+      time: self.time.clone(),
+    }
+  }
+}
+
 pub enum ServerEvent {
   PeerMsg(PeerMsg),
   Stop,
