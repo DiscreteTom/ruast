@@ -26,6 +26,19 @@ impl<'a> EventDrivenServer<'a> {
     }
   }
 
+  pub fn name(&self) -> &str {
+    &self.name
+  }
+
+  pub fn set_name(&mut self, name: &str) {
+    self.name = name.to_string()
+  }
+
+  pub fn with_name(mut self, name: &str) -> Self {
+    self.set_name(name);
+    self
+  }
+
   pub fn tx(&self) -> Sender<ServerEvent> {
     self.tx.clone()
   }
