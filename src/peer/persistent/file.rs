@@ -40,7 +40,4 @@ impl Peer for FilePeer {
   fn tag(&self) -> &str {
     &self.tag
   }
-  fn start(&mut self) -> Result<(), Box<dyn Error>> {
-    Ok(())
-  }
 }
