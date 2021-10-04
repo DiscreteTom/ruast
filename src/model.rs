@@ -5,7 +5,9 @@ pub trait Peer {
   fn id(&self) -> i32;
   fn set_tag(&mut self, tag: &str);
   fn tag(&self) -> &str;
-  fn start(&mut self) -> Result<(), Box<dyn Error>>;
+  fn start(&mut self) -> Result<(), Box<dyn Error>> {
+    Ok(())
+  }
 }
 
 pub struct PeerMsg {
