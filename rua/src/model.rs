@@ -1,18 +1,22 @@
 use std::{collections::HashMap, error::Error, fmt, sync::Arc, time::SystemTime};
 
+type Data = Arc<Vec<u8>>;
+type Result<T> = std::result::Result<T, Box<dyn Error>>;
+type MultiResult<T> = HashMap<i32, Result<T>>;
+
 pub trait Peer {
-  fn write(&mut self, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>>;
+  fn write(&mut self, data: Data) -> Result<()>;
   fn id(&self) -> i32;
   fn set_tag(&mut self, tag: &str);
   fn tag(&self) -> &str;
-  fn start(&mut self) -> Result<(), Box<dyn Error>> {
+  fn start(&mut self) -> Result<()> {
     Ok(())
   }
 }
 
 pub struct PeerMsg {
   pub peer_id: i32,
-  pub data: Arc<Vec<u8>>,
+  pub data: Data,
   pub time: SystemTime,
 }
 
@@ -39,29 +43,25 @@ impl fmt::Display for ServerError {
 impl Error for ServerError {}
 
 pub trait GameServer {
-  fn add_peer(&self, peer: Box<dyn Peer>) -> Result<(), Box<dyn Error>>;
-  fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>>;
+  fn add_peer(&self, peer: Box<dyn Peer>) -> Result<()>;
+  fn remove_peer(&self, id: i32) -> Result<()>;
   fn stop(&self);
 
-  fn for_each_peer<F, T>(&self, f: F) -> HashMap<i32, Result<T, Box<dyn Error>>>
+  fn for_each_peer<F, T>(&self, f: F) -> MultiResult<T>
   where
-    F: Fn(&mut Box<dyn Peer>) -> Result<T, Box<dyn Error>>;
+    F: Fn(&mut Box<dyn Peer>) -> Result<T>;
 
-  fn apply_to<F, T>(&self, id: i32, f: F) -> Result<T, Box<dyn Error>>
+  fn apply_to<F, T>(&self, id: i32, f: F) -> Result<T>
   where
-    F: FnOnce(&mut Box<dyn Peer>) -> Result<T, Box<dyn Error>>;
+    F: FnOnce(&mut Box<dyn Peer>) -> Result<T>;
 
-  fn write_to(&self, id: i32, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>> {
+  fn write_to(&self, id: i32, data: Data) -> Result<()> {
     self.apply_to(id, |p| p.write(data))
   }
-  fn echo(&self, msg: PeerMsg) -> Result<(), Box<dyn Error>> {
+  fn echo(&self, msg: PeerMsg) -> Result<()> {
     self.write_to(msg.peer_id, msg.data)
   }
-  fn broadcast<F>(
-    &self,
-    data: Arc<Vec<u8>>,
-    selector: F,
-  ) -> HashMap<i32, Result<bool, Box<dyn Error>>>
+  fn broadcast<F>(&self, data: Data, selector: F) -> MultiResult<bool>
   where
     F: Fn(&Box<dyn Peer>) -> bool,
   {
@@ -76,7 +76,7 @@ pub trait GameServer {
       }
     })
   }
-  fn broadcast_all(&self, data: Arc<Vec<u8>>) -> HashMap<i32, Result<bool, Box<dyn Error>>> {
+  fn broadcast_all(&self, data: Data) -> MultiResult<bool> {
     self.broadcast(data, |_| true)
   }
 }
