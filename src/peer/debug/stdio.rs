@@ -45,18 +45,18 @@ impl Peer for StdioPeer {
       loop {
         // read line
         let mut line = String::new();
-        io::stdin()
-          .read_line(&mut line)
-          .expect("Failed to read line");
-
-        // send
-        stx
-          .send(ServerEvent::PeerMsg(PeerMsg {
-            peer_id: id,
-            data: Arc::new(line.into_bytes()),
-            time: SystemTime::now(),
-          }))
-          .unwrap()
+        if io::stdin().read_line(&mut line).is_err() {
+          break;
+        } else {
+          // send
+          stx
+            .send(ServerEvent::PeerMsg(PeerMsg {
+              peer_id: id,
+              data: Arc::new(line.into_bytes()),
+              time: SystemTime::now(),
+            }))
+            .unwrap()
+        }
       }
     });
     Ok(())
