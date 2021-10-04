@@ -76,4 +76,7 @@ pub trait GameServer {
       }
     })
   }
+  fn broadcast_all(&self, data: Arc<Vec<u8>>) -> HashMap<i32, Result<bool, Box<dyn Error>>> {
+    self.broadcast(data, |_| true)
+  }
 }
