@@ -1,10 +1,9 @@
 use std::{
-  error::Error,
   fs::{File, OpenOptions},
-  io::{self, Write},
+  io::Write,
 };
 
-use crate::model::Peer;
+use crate::model::{Data, Peer, Result};
 
 pub struct FilePeer {
   tag: String,
@@ -13,7 +12,7 @@ pub struct FilePeer {
 }
 
 impl FilePeer {
-  pub fn new(id: i32, filename: &str) -> Result<Box<dyn Peer>, io::Error> {
+  pub fn new(id: i32, filename: &str) -> Result<Box<dyn Peer>> {
     Ok(Box::new(FilePeer {
       tag: String::from("file"),
       id,
@@ -27,7 +26,7 @@ impl FilePeer {
 }
 
 impl Peer for FilePeer {
-  fn write(&mut self, data: std::sync::Arc<Vec<u8>>) -> Result<(), Box<dyn Error>> {
+  fn write(&mut self, data: Data) -> Result<()> {
     self.file.write_all(&data)?;
     Ok(self.file.sync_data()?)
   }

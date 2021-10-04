@@ -1,12 +1,11 @@
 use std::{
-  error::Error,
   io,
   sync::{mpsc::Sender, Arc},
   thread,
   time::SystemTime,
 };
 
-use crate::model::{Peer, PeerMsg, ServerEvent};
+use crate::model::{Data, Peer, PeerMsg, Result, ServerEvent};
 
 pub struct StdioPeer {
   tag: String,
@@ -25,7 +24,7 @@ impl StdioPeer {
 }
 
 impl Peer for StdioPeer {
-  fn write(&mut self, data: Arc<Vec<u8>>) -> Result<(), Box<dyn Error>> {
+  fn write(&mut self, data: Data) -> Result<()> {
     println!("{}", String::from_utf8_lossy(&data));
     Ok(())
   }
@@ -38,7 +37,7 @@ impl Peer for StdioPeer {
   fn tag(&self) -> &str {
     &self.tag
   }
-  fn start(&mut self) -> Result<(), Box<dyn Error>> {
+  fn start(&mut self) -> Result<()> {
     let stx = self.server_tx.clone();
     let id = self.id;
     thread::spawn(move || {

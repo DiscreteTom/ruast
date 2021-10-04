@@ -1,11 +1,10 @@
 use std::{
   cell::RefCell,
   collections::{hash_map::Entry, HashMap},
-  error::Error,
   sync::mpsc::{self, Receiver, Sender},
 };
 
-use crate::model::{GameServer, Peer, PeerMsg, ServerError, ServerEvent};
+use crate::model::{GameServer, MultiResult, Peer, PeerMsg, Result, ServerError, ServerEvent};
 
 pub struct EventDrivenServer<'a> {
   name: String,
@@ -50,7 +49,7 @@ impl<'a> EventDrivenServer<'a> {
 }
 
 impl<'a> GameServer for EventDrivenServer<'a> {
-  fn add_peer(&self, peer: Box<dyn Peer>) -> Result<(), Box<dyn Error>> {
+  fn add_peer(&self, peer: Box<dyn Peer>) -> Result<()> {
     match self.peers.borrow_mut().entry(peer.id()) {
       Entry::Occupied(_) => {
         Err(Box::new(ServerError::PeerAlreadyExist(peer.id())))
@@ -60,7 +59,7 @@ impl<'a> GameServer for EventDrivenServer<'a> {
     }
   }
 
-  fn remove_peer(&self, id: i32) -> Result<(), Box<dyn Error>> {
+  fn remove_peer(&self, id: i32) -> Result<()> {
     match self.peers.borrow_mut().remove(&id) {
       Some(_) => {
         // the target peer will drop itself since it's moved out of the HashMap
@@ -74,9 +73,9 @@ impl<'a> GameServer for EventDrivenServer<'a> {
     self.tx.send(ServerEvent::Stop).unwrap();
   }
 
-  fn for_each_peer<F, T>(&self, f: F) -> HashMap<i32, Result<T, Box<dyn Error>>>
+  fn for_each_peer<F, T>(&self, f: F) -> MultiResult<T>
   where
-    F: Fn(&mut Box<dyn Peer>) -> Result<T, Box<dyn Error>>,
+    F: Fn(&mut Box<dyn Peer>) -> Result<T>,
   {
     let mut result = HashMap::with_capacity(self.peers.borrow().len());
     for (id, peer) in self.peers.borrow_mut().iter_mut() {
@@ -86,9 +85,9 @@ impl<'a> GameServer for EventDrivenServer<'a> {
     result
   }
 
-  fn apply_to<F, T>(&self, id: i32, f: F) -> Result<T, Box<dyn Error>>
+  fn apply_to<F, T>(&self, id: i32, f: F) -> Result<T>
   where
-    F: FnOnce(&mut Box<dyn Peer>) -> Result<T, Box<dyn Error>>,
+    F: FnOnce(&mut Box<dyn Peer>) -> Result<T>,
   {
     match self.peers.borrow_mut().get_mut(&id) {
       Some(peer) => f(peer),
