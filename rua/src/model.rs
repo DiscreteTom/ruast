@@ -1,8 +1,8 @@
 use std::{collections::HashMap, error::Error, fmt, sync::Arc, time::SystemTime};
 
-type Data = Arc<Vec<u8>>;
-type Result<T> = std::result::Result<T, Box<dyn Error>>;
-type MultiResult<T> = HashMap<i32, Result<T>>;
+pub type Data = Arc<Vec<u8>>;
+pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
+pub type MultiResult<T> = HashMap<i32, Result<T>>;
 
 pub trait Peer {
   fn write(&mut self, data: Data) -> Result<()>;
