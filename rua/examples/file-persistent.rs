@@ -9,7 +9,7 @@ use rua::{
 fn main() -> Result<(), Box<dyn Error>> {
   let mut s = EventDrivenServer::new();
   s.on_peer_msg(&|msg, s| {
-    s.broadcast(msg.data, |_| true);
+    s.broadcast_all(msg.data);
   });
 
   s.add_peer(StdioPeer::new(0, s.tx()))?;
