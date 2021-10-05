@@ -4,7 +4,7 @@ use std::{
   sync::mpsc::{self, Receiver, Sender},
 };
 
-use crate::model::{GameServer, MultiResult, Peer, PeerMsg, Result, ServerError, ServerEvent};
+use crate::model::{Data, MultiResult, Peer, PeerMsg, Result, ServerError, ServerEvent};
 
 pub struct EventDrivenServer<'a> {
   name: String,
@@ -67,10 +67,8 @@ impl<'a> EventDrivenServer<'a> {
     self.custom_event_handler = f;
     self
   }
-}
 
-impl<'a> GameServer for EventDrivenServer<'a> {
-  fn add_peer(&self, peer: Box<dyn Peer>) -> Result<()> {
+  pub fn add_peer(&self, peer: Box<dyn Peer>) -> Result<()> {
     match self.peers.borrow_mut().entry(peer.id()) {
       Entry::Occupied(_) => {
         Err(Box::new(ServerError::PeerAlreadyExist(peer.id())))
@@ -80,7 +78,7 @@ impl<'a> GameServer for EventDrivenServer<'a> {
     }
   }
 
-  fn remove_peer(&self, id: i32) -> Result<()> {
+  pub fn remove_peer(&self, id: i32) -> Result<()> {
     match self.peers.borrow_mut().remove(&id) {
       Some(_) => {
         // the target peer will drop itself since it's moved out of the HashMap
@@ -90,11 +88,11 @@ impl<'a> GameServer for EventDrivenServer<'a> {
     }
   }
 
-  fn stop(&self) {
+  pub fn stop(&self) {
     self.tx.send(ServerEvent::Stop).unwrap();
   }
 
-  fn for_each_peer<F, T>(&self, f: F) -> MultiResult<T>
+  pub fn for_each_peer<F, T>(&self, f: F) -> MultiResult<T>
   where
     F: Fn(&mut Box<dyn Peer>) -> Result<T>,
   {
@@ -106,7 +104,7 @@ impl<'a> GameServer for EventDrivenServer<'a> {
     result
   }
 
-  fn apply_to<F, T>(&self, id: i32, f: F) -> Result<T>
+  pub fn apply_to<F, T>(&self, id: i32, f: F) -> Result<T>
   where
     F: FnOnce(&mut Box<dyn Peer>) -> Result<T>,
   {
@@ -114,5 +112,33 @@ impl<'a> GameServer for EventDrivenServer<'a> {
       Some(peer) => f(peer),
       None => Err(Box::new(ServerError::PeerNotExist(id))),
     }
+  }
+
+  pub fn write_to(&self, id: i32, data: Data) -> Result<()> {
+    self.apply_to(id, |p| p.write(data))
+  }
+
+  pub fn echo(&self, msg: PeerMsg) -> Result<()> {
+    self.write_to(msg.peer_id, msg.data)
+  }
+
+  pub fn broadcast<F>(&self, data: Data, selector: F) -> MultiResult<bool>
+  where
+    F: Fn(&Box<dyn Peer>) -> bool,
+  {
+    self.for_each_peer(|p| {
+      if selector(p) {
+        match p.write(data.clone()) {
+          Ok(_) => Ok(true),
+          Err(e) => Err(e),
+        }
+      } else {
+        Ok(false)
+      }
+    })
+  }
+
+  pub fn broadcast_all(&self, data: Data) -> MultiResult<bool> {
+    self.broadcast(data, |_| true)
   }
 }
