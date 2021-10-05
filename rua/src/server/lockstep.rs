@@ -1,14 +1,14 @@
 use std::{thread, time::Duration};
 
-pub struct LockstepServer<'a> {
+pub struct LockstepController<'a> {
   step_length: u64, // in ms
   step_handler: &'a dyn Fn(&Self),
   current_step: u64,
 }
 
-impl<'a> LockstepServer<'a> {
+impl<'a> LockstepController<'a> {
   pub fn new(step_length: u64) -> Self {
-    LockstepServer {
+    LockstepController {
       step_length,
       current_step: 0,
       step_handler: &|_| {},
