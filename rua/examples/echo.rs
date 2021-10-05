@@ -1,4 +1,4 @@
-use rua::{model::GameServer, peer::StdioPeer, server::EventDrivenServer};
+use rua::{peer::StdioPeer, server::EventDrivenServer};
 
 fn main() {
   let mut s = EventDrivenServer::new();

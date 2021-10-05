@@ -1,9 +1,5 @@
 use ctrlc;
-use rua::{
-  model::{GameServer, ServerEvent},
-  peer::StdioPeer,
-  server::EventDrivenServer,
-};
+use rua::{model::ServerEvent, peer::StdioPeer, server::EventDrivenServer};
 
 fn main() {
   let mut s = EventDrivenServer::new();

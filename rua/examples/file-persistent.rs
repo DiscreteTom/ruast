@@ -1,7 +1,6 @@
 use std::error::Error;
 
 use rua::{
-  model::GameServer,
   peer::{FilePeer, StdioPeer},
   server::EventDrivenServer,
 };
