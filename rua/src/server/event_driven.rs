@@ -10,6 +10,7 @@ pub struct EventDrivenServer<'a> {
   name: String,
   peers: RefCell<HashMap<i32, Box<dyn Peer>>>,
   on_peer_msg_handler: &'a dyn Fn(PeerMsg, &Self),
+  on_custom_event_handler: &'a dyn Fn(u32, &Self),
   tx: Sender<ServerEvent>,
   rx: Receiver<ServerEvent>,
 }
@@ -21,6 +22,7 @@ impl<'a> EventDrivenServer<'a> {
       name: String::from("EventDrivenServer"),
       peers: RefCell::new(HashMap::new()),
       on_peer_msg_handler: &|_, _| {},
+      on_custom_event_handler: &|_, _| {},
       tx,
       rx,
     }
@@ -49,6 +51,7 @@ impl<'a> EventDrivenServer<'a> {
     // process peer message and wait for stop
     loop {
       match self.rx.recv().unwrap() {
+        ServerEvent::Custom(e) => (self.on_custom_event_handler)(e, self),
         ServerEvent::PeerMsg(msg) => (self.on_peer_msg_handler)(msg, self),
         ServerEvent::Stop => break,
       }
@@ -57,6 +60,11 @@ impl<'a> EventDrivenServer<'a> {
 
   pub fn on_peer_msg(&mut self, f: &'a dyn Fn(PeerMsg, &Self)) -> &Self {
     self.on_peer_msg_handler = f;
+    self
+  }
+
+  pub fn on_custom_event(&mut self, f: &'a dyn Fn(u32, &Self)) -> &Self {
+    self.on_custom_event_handler = f;
     self
   }
 }
