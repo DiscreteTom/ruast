@@ -1,12 +1,12 @@
 use rua::{
   model::ServerEvent,
   peer::StdioPeer,
-  server::{lockstep::LockstepController, EventDrivenServer},
+  server::{lockstep::LockstepController, MsgHub},
 };
 
 fn main() {
   let mut peer_msgs = Vec::new();
-  let s = EventDrivenServer::new();
+  let s = MsgHub::new();
 
   let lockstep_op_code = 0;
   let mut lockstepper = LockstepController::new(1000, s.tx(), lockstep_op_code);

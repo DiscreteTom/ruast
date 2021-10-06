@@ -1,3 +1,3 @@
-pub mod event_driven;
-pub use event_driven::EventDrivenServer;
+pub mod hub;
+pub use hub::MsgHub;
 pub mod lockstep;

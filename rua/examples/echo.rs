@@ -1,7 +1,7 @@
-use rua::{model::ServerEvent, peer::StdioPeer, server::EventDrivenServer};
+use rua::{model::ServerEvent, peer::StdioPeer, server::MsgHub};
 
 fn main() {
-  let s = EventDrivenServer::new();
+  let s = MsgHub::new();
   s.add_peer(StdioPeer::new(0, s.tx())).unwrap();
   loop {
     match s.recv() {
