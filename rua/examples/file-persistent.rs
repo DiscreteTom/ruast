@@ -1,9 +1,9 @@
 use std::error::Error;
 
 use rua::{
+  controller::MsgHub,
   model::ServerEvent,
   peer::{FilePeer, StdioPeer},
-  server::MsgHub,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {

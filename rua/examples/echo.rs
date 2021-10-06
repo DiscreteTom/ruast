@@ -1,4 +1,4 @@
-use rua::{model::ServerEvent, peer::StdioPeer, server::MsgHub};
+use rua::{controller::MsgHub, model::ServerEvent, peer::StdioPeer};
 
 fn main() {
   let s = MsgHub::new();

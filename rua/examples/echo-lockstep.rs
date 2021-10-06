@@ -1,7 +1,7 @@
 use rua::{
+  controller::{lockstep::LockstepController, MsgHub},
   model::ServerEvent,
   peer::StdioPeer,
-  server::{lockstep::LockstepController, MsgHub},
 };
 
 fn main() {
