@@ -6,11 +6,14 @@ use std::{
 
 use crate::model::{Data, MultiResult, Peer, PeerMsg, Result, ServerError, ServerEvent};
 
+pub type PeerMsgHandler<'a, S> = &'a dyn Fn(PeerMsg, &S);
+pub type CustomEventHandler<'a, S> = &'a dyn Fn(u32, &S);
+
 pub struct EventDrivenServer<'a> {
   name: String,
   peers: RefCell<HashMap<i32, Box<dyn Peer>>>,
-  peer_msg_handler: &'a dyn Fn(PeerMsg, &Self),
-  custom_event_handler: &'a dyn Fn(u32, &Self),
+  peer_msg_handler: PeerMsgHandler<'a, Self>,
+  custom_event_handler: CustomEventHandler<'a, Self>,
   tx: Sender<ServerEvent>,
   rx: Receiver<ServerEvent>,
 }
@@ -58,12 +61,12 @@ impl<'a> EventDrivenServer<'a> {
     }
   }
 
-  pub fn on_peer_msg(&mut self, f: &'a dyn Fn(PeerMsg, &Self)) -> &Self {
+  pub fn on_peer_msg(&mut self, f: PeerMsgHandler<'a, Self>) -> &Self {
     self.peer_msg_handler = f;
     self
   }
 
-  pub fn on_custom_event(&mut self, f: &'a dyn Fn(u32, &Self)) -> &Self {
+  pub fn on_custom_event(&mut self, f: CustomEventHandler<'a, Self>) -> &Self {
     self.custom_event_handler = f;
     self
   }
