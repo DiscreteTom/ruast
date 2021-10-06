@@ -23,7 +23,7 @@ fn main() {
         if code == lockstep_op_code {
           // write current step
           h.broadcast_all(Arc::new(
-            (lockstepper.current_step().to_string() + ":").into_bytes(),
+            (lockstepper.current_step().to_string() + ":\n").into_bytes(),
           ));
 
           // write all msg
