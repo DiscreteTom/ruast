@@ -7,7 +7,6 @@ use std::{
 use crate::model::{Data, Error, EventType, MultiResult, Peer, PeerMsg, Result};
 
 pub struct EventHub {
-  name: String,
   peers: RefCell<HashMap<i32, Box<dyn Peer>>>,
   tx: Sender<EventType>,
   rx: Receiver<EventType>,
@@ -17,24 +16,10 @@ impl EventHub {
   pub fn new() -> Self {
     let (tx, rx) = mpsc::channel();
     EventHub {
-      name: String::from("EventDrivenServer"),
       peers: RefCell::new(HashMap::new()),
       tx,
       rx,
     }
-  }
-
-  pub fn name(&self) -> &str {
-    &self.name
-  }
-
-  pub fn set_name(&mut self, name: &str) {
-    self.name = name.to_string()
-  }
-
-  pub fn with_name(mut self, name: &str) -> Self {
-    self.set_name(name);
-    self
   }
 
   pub fn tx(&self) -> Sender<EventType> {
