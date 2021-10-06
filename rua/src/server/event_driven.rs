@@ -6,26 +6,19 @@ use std::{
 
 use crate::model::{Data, MultiResult, Peer, PeerMsg, Result, ServerError, ServerEvent};
 
-pub type PeerMsgHandler<'a, S> = &'a dyn Fn(PeerMsg, &S);
-pub type CustomEventHandler<'a, S> = &'a dyn Fn(u32, &S);
-
-pub struct EventDrivenServer<'a> {
+pub struct EventDrivenServer {
   name: String,
   peers: RefCell<HashMap<i32, Box<dyn Peer>>>,
-  peer_msg_handler: PeerMsgHandler<'a, Self>,
-  custom_event_handler: CustomEventHandler<'a, Self>,
   tx: Sender<ServerEvent>,
   rx: Receiver<ServerEvent>,
 }
 
-impl<'a> EventDrivenServer<'a> {
+impl EventDrivenServer {
   pub fn new() -> Self {
     let (tx, rx) = mpsc::channel();
     EventDrivenServer {
       name: String::from("EventDrivenServer"),
       peers: RefCell::new(HashMap::new()),
-      peer_msg_handler: &|_, _| {},
-      custom_event_handler: &|_, _| {},
       tx,
       rx,
     }
@@ -48,27 +41,8 @@ impl<'a> EventDrivenServer<'a> {
     self.tx.clone()
   }
 
-  pub fn start(&self) {
-    println!("{} is running...", self.name);
-
-    // process peer message and wait for stop
-    loop {
-      match self.rx.recv().unwrap() {
-        ServerEvent::Custom(e) => (self.custom_event_handler)(e, self),
-        ServerEvent::PeerMsg(msg) => (self.peer_msg_handler)(msg, self),
-        ServerEvent::Stop => break,
-      }
-    }
-  }
-
-  pub fn on_peer_msg(&mut self, f: PeerMsgHandler<'a, Self>) -> &Self {
-    self.peer_msg_handler = f;
-    self
-  }
-
-  pub fn on_custom_event(&mut self, f: CustomEventHandler<'a, Self>) -> &Self {
-    self.custom_event_handler = f;
-    self
+  pub fn recv(&self) -> ServerEvent {
+    self.rx.recv().unwrap()
   }
 
   pub fn add_peer(&self, peer: Box<dyn Peer>) -> Result<()> {
@@ -101,7 +75,6 @@ impl<'a> EventDrivenServer<'a> {
   {
     let mut result = HashMap::with_capacity(self.peers.borrow().len());
     for (id, peer) in self.peers.borrow_mut().iter_mut() {
-      // peer.send(PeerEvent::Apply(f)).unwrap();
       result.insert(*id, f(peer));
     }
     result
