@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use rua::{
-  controller::{lockstep::LockstepController, EventHub},
+  controller::{EventHub, LockstepController},
   model::Event,
   peer::StdioPeer,
 };
@@ -19,9 +21,16 @@ fn main() {
       Event::PeerMsg(msg) => peer_msgs.push(msg.data),
       Event::Custom(code) => {
         if code == lockstep_op_code {
+          // write current step
+          h.broadcast_all(Arc::new(
+            (lockstepper.current_step().to_string() + ":").into_bytes(),
+          ));
+
+          // write all msg
           for data in &peer_msgs {
             h.broadcast_all(data.clone());
           }
+
           peer_msgs.clear();
           lockstepper.next_step();
         }
