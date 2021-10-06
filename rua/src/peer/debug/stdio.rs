@@ -1,5 +1,5 @@
 use std::{
-  io,
+  io::{self, Write},
   sync::{mpsc::Sender, Arc},
   thread,
   time::SystemTime,
@@ -25,7 +25,8 @@ impl StdioPeer {
 
 impl Peer for StdioPeer {
   fn write(&mut self, data: Data) -> Result<()> {
-    println!("{}", String::from_utf8_lossy(&data));
+    print!("{}", String::from_utf8_lossy(&data));
+    io::stdout().flush().unwrap();
     Ok(())
   }
   fn id(&self) -> i32 {
