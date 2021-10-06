@@ -1,7 +1,7 @@
-use std::{collections::HashMap, error::Error, fmt, sync::Arc, time::SystemTime};
+use std::{collections::HashMap, fmt, sync::Arc, time::SystemTime};
 
 pub type Data = Arc<Vec<u8>>;
-pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub type MultiResult<T> = HashMap<i32, Result<T>>;
 
 pub trait Peer {
@@ -37,18 +37,18 @@ pub enum EventType {
 }
 
 #[derive(Debug)]
-pub enum ServerError {
+pub enum Error {
   PeerNotExist(i32),
   PeerAlreadyExist(i32),
 }
 
-impl fmt::Display for ServerError {
+impl fmt::Display for Error {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     match self {
-      ServerError::PeerNotExist(id) => write!(f, "peer not exist, id={}", id),
-      ServerError::PeerAlreadyExist(id) => write!(f, "peer already exist, id={}", id),
+      Error::PeerNotExist(id) => write!(f, "peer not exist, id={}", id),
+      Error::PeerAlreadyExist(id) => write!(f, "peer already exist, id={}", id),
     }
   }
 }
 
-impl Error for ServerError {}
+impl std::error::Error for Error {}

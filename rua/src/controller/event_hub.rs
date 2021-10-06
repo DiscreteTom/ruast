@@ -4,7 +4,7 @@ use std::{
   sync::mpsc::{self, Receiver, Sender},
 };
 
-use crate::model::{Data, EventType, MultiResult, Peer, PeerMsg, Result, ServerError};
+use crate::model::{Data, Error, EventType, MultiResult, Peer, PeerMsg, Result};
 
 pub struct EventHub {
   name: String,
@@ -48,7 +48,7 @@ impl EventHub {
   pub fn add_peer(&self, peer: Box<dyn Peer>) -> Result<()> {
     match self.peers.borrow_mut().entry(peer.id()) {
       Entry::Occupied(_) => {
-        Err(Box::new(ServerError::PeerAlreadyExist(peer.id())))
+        Err(Box::new(Error::PeerAlreadyExist(peer.id())))
         // the new peer will drop itself since it's not moved into the HashMap
       }
       Entry::Vacant(e) => e.insert(peer).start(),
@@ -61,7 +61,7 @@ impl EventHub {
         // the target peer will drop itself since it's moved out of the HashMap
         Ok(())
       }
-      None => Err(Box::new(ServerError::PeerNotExist(id))),
+      None => Err(Box::new(Error::PeerNotExist(id))),
     }
   }
 
@@ -86,7 +86,7 @@ impl EventHub {
   {
     match self.peers.borrow_mut().get_mut(&id) {
       Some(peer) => f(peer),
-      None => Err(Box::new(ServerError::PeerNotExist(id))),
+      None => Err(Box::new(Error::PeerNotExist(id))),
     }
   }
 
