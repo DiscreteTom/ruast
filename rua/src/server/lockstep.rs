@@ -1,17 +1,21 @@
-use std::{thread, time::Duration};
+use std::{sync::mpsc::Sender, thread, time::Duration};
 
-pub struct LockstepController<'a> {
+use crate::model::ServerEvent;
+
+pub struct LockstepController {
   step_length: u64, // in ms
-  step_handler: &'a dyn Fn(&Self),
   current_step: u64,
+  server_tx: Sender<ServerEvent>,
+  op_code: u32,
 }
 
-impl<'a> LockstepController<'a> {
-  pub fn new(step_length: u64) -> Self {
+impl LockstepController {
+  pub fn new(step_length: u64, server_tx: Sender<ServerEvent>, op_code: u32) -> Self {
     LockstepController {
       step_length,
+      server_tx,
+      op_code,
       current_step: 0,
-      step_handler: &|_| {},
     }
   }
 
@@ -23,16 +27,14 @@ impl<'a> LockstepController<'a> {
     self.current_step
   }
 
-  pub fn on_step(&mut self, f: &'a dyn Fn(&Self)) -> &Self {
-    self.step_handler = f;
-    self
-  }
-
-  pub fn start(&mut self) {
-    loop {
-      thread::sleep(Duration::from_micros(self.step_length));
-      self.current_step += 1;
-      (self.step_handler)(self);
-    }
+  pub fn next_step(&mut self) {
+    self.current_step += 1;
+    let step_length = self.step_length;
+    let server_tx = self.server_tx.clone();
+    let op_code = self.op_code;
+    thread::spawn(move || {
+      thread::sleep(Duration::from_millis(step_length));
+      server_tx.send(ServerEvent::Custom(op_code)).unwrap();
+    });
   }
 }
