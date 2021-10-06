@@ -38,7 +38,7 @@ impl Peer for StdioPeer {
     &self.tag
   }
   fn start(&mut self) -> Result<()> {
-    let stx = self.hub_tx.clone();
+    let hub_tx = self.hub_tx.clone();
     let id = self.id;
     thread::spawn(move || {
       loop {
@@ -48,7 +48,7 @@ impl Peer for StdioPeer {
           break;
         } else {
           // send
-          stx
+          hub_tx
             .send(Event::PeerMsg(PeerMsg {
               peer_id: id,
               data: Arc::new(line.into_bytes()),

@@ -7,15 +7,15 @@ use rua::{
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
-  let s = EventHub::new();
+  let h = EventHub::new();
 
-  s.add_peer(StdioPeer::new(0, s.tx()))?;
-  s.add_peer(FilePeer::new(1, "log.txt")?)?;
+  h.add_peer(StdioPeer::new(0, h.tx()))?;
+  h.add_peer(FilePeer::new(1, "log.txt")?)?;
 
   loop {
-    match s.recv() {
+    match h.recv() {
       Event::PeerMsg(msg) => {
-        s.broadcast_all(msg.data);
+        h.broadcast_all(msg.data);
       }
       _ => break,
     }
