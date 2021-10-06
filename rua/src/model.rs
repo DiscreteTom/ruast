@@ -30,7 +30,7 @@ impl Clone for PeerMsg {
   }
 }
 
-pub enum ServerEvent {
+pub enum EventType {
   Custom(u32),
   PeerMsg(PeerMsg),
   Stop,

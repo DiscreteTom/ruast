@@ -2,7 +2,7 @@ use std::error::Error;
 
 use rua::{
   controller::EventHub,
-  model::ServerEvent,
+  model::EventType,
   peer::{FilePeer, StdioPeer},
 };
 
@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
   loop {
     match s.recv() {
-      ServerEvent::PeerMsg(msg) => {
+      EventType::PeerMsg(msg) => {
         s.broadcast_all(msg.data);
       }
       _ => break,
