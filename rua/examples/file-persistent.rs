@@ -1,13 +1,13 @@
 use std::error::Error;
 
 use rua::{
-  controller::MsgHub,
+  controller::EventHub,
   model::ServerEvent,
   peer::{FilePeer, StdioPeer},
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
-  let s = MsgHub::new();
+  let s = EventHub::new();
 
   s.add_peer(StdioPeer::new(0, s.tx()))?;
   s.add_peer(FilePeer::new(1, "log.txt")?)?;

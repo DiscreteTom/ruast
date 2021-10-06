@@ -6,17 +6,17 @@ use std::{
 
 use crate::model::{Data, MultiResult, Peer, PeerMsg, Result, ServerError, ServerEvent};
 
-pub struct MsgHub {
+pub struct EventHub {
   name: String,
   peers: RefCell<HashMap<i32, Box<dyn Peer>>>,
   tx: Sender<ServerEvent>,
   rx: Receiver<ServerEvent>,
 }
 
-impl MsgHub {
+impl EventHub {
   pub fn new() -> Self {
     let (tx, rx) = mpsc::channel();
-    MsgHub {
+    EventHub {
       name: String::from("EventDrivenServer"),
       peers: RefCell::new(HashMap::new()),
       tx,

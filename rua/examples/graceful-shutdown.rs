@@ -1,8 +1,8 @@
 use ctrlc;
-use rua::{controller::MsgHub, model::ServerEvent, peer::StdioPeer};
+use rua::{controller::EventHub, model::ServerEvent, peer::StdioPeer};
 
 fn main() {
-  let s = MsgHub::new();
+  let s = EventHub::new();
   s.add_peer(StdioPeer::new(0, s.tx())).unwrap();
 
   let tx = s.tx();
