@@ -5,16 +5,16 @@ use std::{
   time::SystemTime,
 };
 
-use crate::model::{Data, EventType, Peer, PeerMsg, Result};
+use crate::model::{Data, Event, Peer, PeerMsg, Result};
 
 pub struct StdioPeer {
   tag: String,
   id: i32,
-  hub_tx: Sender<EventType>,
+  hub_tx: Sender<Event>,
 }
 
 impl StdioPeer {
-  pub fn new(id: i32, hub_tx: Sender<EventType>) -> Box<dyn Peer> {
+  pub fn new(id: i32, hub_tx: Sender<Event>) -> Box<dyn Peer> {
     Box::new(StdioPeer {
       tag: String::from("stdio"),
       id,
@@ -49,7 +49,7 @@ impl Peer for StdioPeer {
         } else {
           // send
           stx
-            .send(EventType::PeerMsg(PeerMsg {
+            .send(Event::PeerMsg(PeerMsg {
               peer_id: id,
               data: Arc::new(line.into_bytes()),
               time: SystemTime::now(),

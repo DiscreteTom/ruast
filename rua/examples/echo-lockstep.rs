@@ -1,6 +1,6 @@
 use rua::{
   controller::{lockstep::LockstepController, EventHub},
-  model::EventType,
+  model::Event,
   peer::StdioPeer,
 };
 
@@ -16,8 +16,8 @@ fn main() {
 
   loop {
     match s.recv() {
-      EventType::PeerMsg(msg) => peer_msgs.push(msg.data),
-      EventType::Custom(code) => {
+      Event::PeerMsg(msg) => peer_msgs.push(msg.data),
+      Event::Custom(code) => {
         if code == lockstep_op_code {
           for data in &peer_msgs {
             s.broadcast_all(data.clone());

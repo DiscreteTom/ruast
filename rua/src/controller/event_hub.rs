@@ -4,12 +4,12 @@ use std::{
   sync::mpsc::{self, Receiver, Sender},
 };
 
-use crate::model::{Data, Error, EventType, MultiResult, Peer, PeerMsg, Result};
+use crate::model::{Data, Error, Event, MultiResult, Peer, PeerMsg, Result};
 
 pub struct EventHub {
   peers: RefCell<HashMap<i32, Box<dyn Peer>>>,
-  tx: Sender<EventType>,
-  rx: Receiver<EventType>,
+  tx: Sender<Event>,
+  rx: Receiver<Event>,
 }
 
 impl EventHub {
@@ -22,11 +22,11 @@ impl EventHub {
     }
   }
 
-  pub fn tx(&self) -> Sender<EventType> {
+  pub fn tx(&self) -> Sender<Event> {
     self.tx.clone()
   }
 
-  pub fn recv(&self) -> EventType {
+  pub fn recv(&self) -> Event {
     self.rx.recv().unwrap()
   }
 
@@ -51,7 +51,7 @@ impl EventHub {
   }
 
   pub fn stop(&self) {
-    self.tx.send(EventType::Stop).unwrap();
+    self.tx.send(Event::Stop).unwrap();
   }
 
   pub fn for_each_peer<F, T>(&self, f: F) -> MultiResult<T>

@@ -1,16 +1,16 @@
 use std::{sync::mpsc::Sender, thread, time::Duration};
 
-use crate::model::EventType;
+use crate::model::Event;
 
 pub struct LockstepController {
   step_length: u64, // in ms
   current_step: u64,
-  hub_tx: Sender<EventType>,
+  hub_tx: Sender<Event>,
   op_code: u32,
 }
 
 impl LockstepController {
-  pub fn new(step_length: u64, hub_tx: Sender<EventType>, op_code: u32) -> Self {
+  pub fn new(step_length: u64, hub_tx: Sender<Event>, op_code: u32) -> Self {
     LockstepController {
       step_length,
       hub_tx,
@@ -34,7 +34,7 @@ impl LockstepController {
     let op_code = self.op_code;
     thread::spawn(move || {
       thread::sleep(Duration::from_millis(step_length));
-      hub_tx.send(EventType::Custom(op_code)).unwrap();
+      hub_tx.send(Event::Custom(op_code)).unwrap();
     });
   }
 }
