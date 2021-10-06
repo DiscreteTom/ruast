@@ -10,15 +10,15 @@ use crate::model::{Data, EventType, Peer, PeerMsg, Result};
 pub struct StdioPeer {
   tag: String,
   id: i32,
-  server_tx: Sender<EventType>,
+  hub_tx: Sender<EventType>,
 }
 
 impl StdioPeer {
-  pub fn new(id: i32, server_tx: Sender<EventType>) -> Box<dyn Peer> {
+  pub fn new(id: i32, hub_tx: Sender<EventType>) -> Box<dyn Peer> {
     Box::new(StdioPeer {
       tag: String::from("stdio"),
       id,
-      server_tx,
+      hub_tx,
     })
   }
 }
@@ -38,7 +38,7 @@ impl Peer for StdioPeer {
     &self.tag
   }
   fn start(&mut self) -> Result<()> {
-    let stx = self.server_tx.clone();
+    let stx = self.hub_tx.clone();
     let id = self.id;
     thread::spawn(move || {
       loop {

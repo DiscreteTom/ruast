@@ -5,15 +5,15 @@ use crate::model::EventType;
 pub struct LockstepController {
   step_length: u64, // in ms
   current_step: u64,
-  server_tx: Sender<EventType>,
+  hub_tx: Sender<EventType>,
   op_code: u32,
 }
 
 impl LockstepController {
-  pub fn new(step_length: u64, server_tx: Sender<EventType>, op_code: u32) -> Self {
+  pub fn new(step_length: u64, hub_tx: Sender<EventType>, op_code: u32) -> Self {
     LockstepController {
       step_length,
-      server_tx,
+      hub_tx,
       op_code,
       current_step: 0,
     }
@@ -30,11 +30,11 @@ impl LockstepController {
   pub fn next_step(&mut self) {
     self.current_step += 1;
     let step_length = self.step_length;
-    let server_tx = self.server_tx.clone();
+    let hub_tx = self.hub_tx.clone();
     let op_code = self.op_code;
     thread::spawn(move || {
       thread::sleep(Duration::from_millis(step_length));
-      server_tx.send(EventType::Custom(op_code)).unwrap();
+      hub_tx.send(EventType::Custom(op_code)).unwrap();
     });
   }
 }
