@@ -1,8 +1,12 @@
-use rua::{peer::StdioPeer, server::EventDrivenServer};
+use rua::{model::ServerEvent, peer::StdioPeer, server::EventDrivenServer};
 
 fn main() {
-  let mut s = EventDrivenServer::new();
-  s.on_peer_msg(&|msg, s| s.echo(msg).unwrap());
+  let s = EventDrivenServer::new();
   s.add_peer(StdioPeer::new(0, s.tx())).unwrap();
-  s.start();
+  loop {
+    match s.recv() {
+      ServerEvent::PeerMsg(msg) => s.echo(msg).unwrap(),
+      _ => break,
+    }
+  }
 }
