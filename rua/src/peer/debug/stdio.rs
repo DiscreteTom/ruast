@@ -1,15 +1,17 @@
+use bytes::Bytes;
 use std::{
-  io::{self, Write},
-  sync::{mpsc::Sender, Arc},
+  io::{self, Stdout, Write},
+  sync::mpsc::Sender,
   thread,
 };
 
-use crate::model::{Data, Event, Peer, PeerMsg, Result};
+use crate::model::{Event, Peer, PeerMsg, Result};
 
 pub struct StdioPeer {
   tag: String,
   id: i32,
   hub_tx: Sender<Event>,
+  stdout: Stdout,
 }
 
 impl StdioPeer {
@@ -18,14 +20,15 @@ impl StdioPeer {
       tag: String::from("stdio"),
       id,
       hub_tx,
+      stdout: io::stdout(),
     })
   }
 }
 
 impl Peer for StdioPeer {
-  fn write(&mut self, data: Data) -> Result<()> {
+  fn write(&self, data: Bytes) -> Result<()> {
     print!("{}", String::from_utf8_lossy(&data));
-    io::stdout().flush().unwrap();
+    self.stdout.flush().unwrap();
     Ok(())
   }
   fn id(&self) -> i32 {
@@ -41,17 +44,18 @@ impl Peer for StdioPeer {
     let hub_tx = self.hub_tx.clone();
     let id = self.id;
     thread::spawn(move || {
+      let stdin = io::stdin();
       loop {
         // read line
         let mut line = String::new();
-        if io::stdin().read_line(&mut line).is_err() {
+        if stdin.read_line(&mut line).is_err() {
           break;
         } else {
           // send
           hub_tx
             .send(Event::PeerMsg(PeerMsg {
               peer_id: id,
-              data: Arc::new(line.into_bytes()),
+              data: Bytes::from(line.into_bytes()),
             }))
             .unwrap()
         }
