@@ -1,11 +1,11 @@
-use std::{collections::HashMap, fmt, sync::Arc};
+pub use bytes::Bytes;
+use std::{collections::HashMap, fmt};
 
-pub type Data = Arc<Vec<u8>>;
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub type MultiResult<T> = HashMap<i32, Result<T>>;
 
 pub trait Peer {
-  fn write(&mut self, data: Data) -> Result<()>;
+  fn write(&self, data: Bytes) -> Result<()>;
   fn id(&self) -> i32;
   fn set_tag(&mut self, tag: &str);
   fn tag(&self) -> &str;
@@ -14,18 +14,10 @@ pub trait Peer {
   }
 }
 
+#[derive(Clone)]
 pub struct PeerMsg {
   pub peer_id: i32,
-  pub data: Data,
-}
-
-impl Clone for PeerMsg {
-  fn clone(&self) -> Self {
-    Self {
-      peer_id: self.peer_id.clone(),
-      data: self.data.clone(),
-    }
-  }
+  pub data: Bytes,
 }
 
 pub enum Event {
