@@ -2,7 +2,6 @@ use std::{
   io::{self, Write},
   sync::{mpsc::Sender, Arc},
   thread,
-  time::SystemTime,
 };
 
 use crate::model::{Data, Event, Peer, PeerMsg, Result};
@@ -53,7 +52,6 @@ impl Peer for StdioPeer {
             .send(Event::PeerMsg(PeerMsg {
               peer_id: id,
               data: Arc::new(line.into_bytes()),
-              time: SystemTime::now(),
             }))
             .unwrap()
         }

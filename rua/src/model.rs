@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, sync::Arc, time::SystemTime};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 pub type Data = Arc<Vec<u8>>;
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -17,7 +17,6 @@ pub trait Peer {
 pub struct PeerMsg {
   pub peer_id: i32,
   pub data: Data,
-  pub time: SystemTime,
 }
 
 impl Clone for PeerMsg {
@@ -25,7 +24,6 @@ impl Clone for PeerMsg {
     Self {
       peer_id: self.peer_id.clone(),
       data: self.data.clone(),
-      time: self.time.clone(),
     }
   }
 }
