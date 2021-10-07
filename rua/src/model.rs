@@ -14,12 +14,13 @@ pub trait Peer {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PeerMsg {
   pub peer_id: i32,
   pub data: Bytes,
 }
 
+#[derive(Debug)]
 pub enum Event {
   Custom(u32),
   PeerMsg(PeerMsg),
