@@ -1,5 +1,4 @@
 use std::{
-  cell::RefCell,
   fs::{File, OpenOptions},
   io::Write,
 };
@@ -11,7 +10,7 @@ use crate::model::{Peer, Result};
 pub struct FilePeer {
   tag: String,
   id: i32,
-  file: RefCell<File>,
+  file: File,
 }
 
 impl FilePeer {
@@ -19,21 +18,19 @@ impl FilePeer {
     Ok(Box::new(FilePeer {
       tag: String::from("file"),
       id,
-      file: RefCell::new(
-        OpenOptions::new()
-          .create(true)
-          .write(true)
-          .append(true)
-          .open(filename)?,
-      ),
+      file: OpenOptions::new()
+        .create(true)
+        .write(true)
+        .append(true)
+        .open(filename)?,
     }))
   }
 }
 
 impl Peer for FilePeer {
-  fn write(&self, data: Bytes) -> Result<()> {
-    self.file.borrow_mut().write_all(&data)?;
-    Ok(self.file.borrow_mut().sync_data()?)
+  fn write(&mut self, data: Bytes) -> Result<()> {
+    self.file.write_all(&data)?;
+    Ok(self.file.sync_data()?)
   }
   fn id(&self) -> i32 {
     self.id

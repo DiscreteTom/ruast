@@ -26,7 +26,7 @@ impl StdioPeer {
 }
 
 impl Peer for StdioPeer {
-  fn write(&self, data: Bytes) -> Result<()> {
+  fn write(&mut self, data: Bytes) -> Result<()> {
     print!("{}", String::from_utf8_lossy(&data));
     self.stdout.flush().unwrap();
     Ok(())
