@@ -1,10 +1,11 @@
+use bytes::Bytes;
 use std::{
   cell::RefCell,
   collections::{hash_map::Entry, HashMap},
   sync::mpsc::{self, Receiver, Sender},
 };
 
-use crate::model::{Data, Error, Event, MultiResult, Peer, PeerMsg, Result};
+use crate::model::{Error, Event, MultiResult, Peer, PeerMsg, Result};
 
 pub struct EventHub {
   peers: RefCell<HashMap<i32, Box<dyn Peer>>>,
@@ -75,7 +76,7 @@ impl EventHub {
     }
   }
 
-  pub fn write_to(&self, id: i32, data: Data) -> Result<()> {
+  pub fn write_to(&self, id: i32, data: Bytes) -> Result<()> {
     self.apply_to(id, |p| p.write(data))
   }
 
@@ -83,7 +84,7 @@ impl EventHub {
     self.write_to(msg.peer_id, msg.data)
   }
 
-  pub fn broadcast<F>(&self, data: Data, selector: F) -> MultiResult<bool>
+  pub fn broadcast<F>(&self, data: Bytes, selector: F) -> MultiResult<bool>
   where
     F: Fn(&Box<dyn Peer>) -> bool,
   {
@@ -99,7 +100,7 @@ impl EventHub {
     })
   }
 
-  pub fn broadcast_all(&self, data: Data) -> MultiResult<bool> {
+  pub fn broadcast_all(&self, data: Bytes) -> MultiResult<bool> {
     self.broadcast(data, |_| true)
   }
 }
