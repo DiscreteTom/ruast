@@ -1,4 +1,5 @@
-use std::{sync::mpsc::Sender, thread, time::Duration};
+use std::time::Duration;
+use tokio::{sync::mpsc::Sender, time};
 
 use crate::model::HubEvent;
 
@@ -32,9 +33,9 @@ impl LockstepController {
     let step_length = self.step_length;
     let hub_tx = self.hub_tx.clone();
     let op_code = self.op_code;
-    thread::spawn(move || {
-      thread::sleep(Duration::from_millis(step_length));
-      hub_tx.send(HubEvent::Custom(op_code)).unwrap();
+    tokio::spawn(async move {
+      time::sleep(Duration::from_millis(step_length)).await;
+      hub_tx.send(HubEvent::Custom(op_code)).await.unwrap();
     });
   }
 }
