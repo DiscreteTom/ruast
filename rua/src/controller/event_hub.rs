@@ -23,7 +23,7 @@ impl EventHub {
     }
   }
 
-  pub fn tx(&self) -> Sender<Event> {
+  pub fn tx_clone(&self) -> Sender<Event> {
     self.tx.clone()
   }
 

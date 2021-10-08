@@ -10,7 +10,7 @@ use rua::{
 pub async fn main() -> Result<(), Box<dyn Error>> {
   let mut h = EventHub::new(256);
 
-  h.add_peer(StdioPeer::new(0, h.tx(), 256))?;
+  h.add_peer(StdioPeer::new(0, h.tx_clone(), 256))?;
   h.add_peer(FilePeer::new(1, "log.txt", 256)?)?;
 
   loop {
