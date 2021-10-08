@@ -29,6 +29,12 @@ pub enum HubEvent {
 }
 
 #[derive(Debug)]
+pub enum PeerEvent {
+  Write(Bytes),
+  Stop,
+}
+
+#[derive(Debug)]
 pub enum Error {
   PeerNotExist(i32),
   PeerAlreadyExist(i32),
