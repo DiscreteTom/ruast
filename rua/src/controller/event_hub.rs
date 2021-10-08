@@ -2,8 +2,8 @@ use bytes::Bytes;
 use std::{
   cell::RefCell,
   collections::{hash_map::Entry, HashMap},
-  sync::mpsc::{self, Receiver, Sender},
 };
+use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::model::{Error, Event, MultiResult, Peer, PeerMsg, Result};
 
@@ -14,8 +14,8 @@ pub struct EventHub {
 }
 
 impl EventHub {
-  pub fn new() -> Self {
-    let (tx, rx) = mpsc::channel();
+  pub fn new(buffer: usize) -> Self {
+    let (tx, rx) = mpsc::channel(buffer);
     EventHub {
       peers: RefCell::new(HashMap::new()),
       tx,
@@ -27,80 +27,59 @@ impl EventHub {
     self.tx.clone()
   }
 
-  pub fn recv(&self) -> Event {
-    self.rx.recv().unwrap()
+  pub async fn recv(&mut self) -> Event {
+    self.rx.recv().await.unwrap()
   }
 
   pub fn add_peer(&self, peer: Box<dyn Peer>) -> Result<()> {
     match self.peers.borrow_mut().entry(peer.id()) {
-      Entry::Occupied(_) => {
-        Err(Box::new(Error::PeerAlreadyExist(peer.id())))
-        // the new peer will drop itself since it's not moved into the HashMap
-      }
+      Entry::Occupied(_) => Err(Box::new(Error::PeerAlreadyExist(peer.id()))),
       Entry::Vacant(e) => e.insert(peer).start(),
     }
   }
 
   pub fn remove_peer(&self, id: i32) -> Result<()> {
     match self.peers.borrow_mut().remove(&id) {
-      Some(_) => {
-        // the target peer will drop itself since it's moved out of the HashMap
-        Ok(())
-      }
+      Some(_) => Ok(()),
       None => Err(Box::new(Error::PeerNotExist(id))),
     }
   }
 
-  pub fn stop(&self) {
-    self.tx.send(Event::Stop).unwrap();
+  pub async fn stop(&self) {
+    self.tx.send(Event::Stop).await.unwrap();
   }
 
-  pub fn for_each_peer<F, T>(&self, f: F) -> MultiResult<T>
+  pub async fn write_to(&self, id: i32, data: Bytes) -> Result<()> {
+    match self.peers.borrow_mut().get_mut(&id) {
+      Some(peer) => Ok(peer.tx().send(data).await?),
+      None => Err(Box::new(Error::PeerNotExist(id))),
+    }
+  }
+
+  pub async fn echo(&self, msg: PeerMsg) -> Result<()> {
+    self.write_to(msg.peer_id, msg.data).await
+  }
+
+  pub async fn broadcast<F>(&self, data: Bytes, selector: F) -> MultiResult<bool>
   where
-    F: Fn(&mut Box<dyn Peer>) -> Result<T>,
+    F: Fn(&Box<dyn Peer>) -> bool,
   {
     let mut result = HashMap::with_capacity(self.peers.borrow().len());
-    for (id, peer) in self.peers.borrow_mut().iter_mut() {
-      result.insert(*id, f(peer));
+    for (id, p) in self.peers.borrow_mut().iter_mut() {
+      let t = if selector(p) {
+        match p.tx().send(data.clone()).await {
+          Ok(_) => Ok(true),
+          Err(e) => Err(Box::new(e) as Box<dyn std::error::Error>),
+        }
+      } else {
+        Ok(false)
+      };
+      result.insert(*id, t);
     }
     result
   }
 
-  pub fn apply_to<F, T>(&self, id: i32, f: F) -> Result<T>
-  where
-    F: FnOnce(&mut Box<dyn Peer>) -> Result<T>,
-  {
-    match self.peers.borrow_mut().get_mut(&id) {
-      Some(peer) => f(peer),
-      None => Err(Box::new(Error::PeerNotExist(id))),
-    }
-  }
-
-  pub fn write_to(&self, id: i32, data: Bytes) -> Result<()> {
-    self.apply_to(id, |p| p.write(data))
-  }
-
-  pub fn echo(&self, msg: PeerMsg) -> Result<()> {
-    self.write_to(msg.peer_id, msg.data)
-  }
-
-  pub fn broadcast<F>(&self, data: Bytes, selector: F) -> MultiResult<bool>
-  where
-    F: Fn(&Box<dyn Peer>) -> bool,
-  {
-    self.for_each_peer(|p| {
-      if selector(p) {
-        match p.write(data.clone()) {
-          Ok(_) => Ok(true),
-          Err(e) => Err(e),
-        }
-      } else {
-        Ok(false)
-      }
-    })
-  }
-
-  pub fn broadcast_all(&self, data: Bytes) -> MultiResult<bool> {
-    self.broadcast(data, |_| true)
+  pub async fn broadcast_all(&self, data: Bytes) -> MultiResult<bool> {
+    self.broadcast(data, |_| true).await
   }
 }
