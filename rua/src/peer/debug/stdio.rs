@@ -10,18 +10,29 @@ pub struct StdioPeer {
   hub_tx: Sender<HubEvent>,
   tx: Sender<PeerEvent>,
   rx: Option<Receiver<PeerEvent>>,
+  disable_input: bool,
 }
 
 impl StdioPeer {
-  pub fn new(id: i32, hub_tx: Sender<HubEvent>, buffer: usize) -> Box<dyn Peer> {
+  pub fn new(id: i32, hub_tx: Sender<HubEvent>, buffer: usize) -> Self {
     let (tx, rx) = mpsc::channel(buffer);
-    Box::new(StdioPeer {
+    StdioPeer {
       tag: String::from("stdio"),
       id,
       hub_tx,
       tx,
       rx: Some(rx),
-    })
+      disable_input: false,
+    }
+  }
+
+  pub fn disable_input(&mut self, disable: bool) -> &Self {
+    self.disable_input = disable;
+    self
+  }
+
+  pub fn build(self) -> Box<dyn Peer> {
+    Box::new(self)
   }
 }
 
@@ -40,28 +51,30 @@ impl Peer for StdioPeer {
   }
 
   fn start(&mut self) -> Result<()> {
-    // start reader thread
-    let hub_tx = self.hub_tx.clone();
-    let id = self.id;
-    tokio::spawn(async move {
-      let stdin = io::stdin();
-      loop {
-        // read line
-        let mut line = String::new();
-        if stdin.read_line(&mut line).is_err() {
-          break;
-        } else {
-          // send
-          hub_tx
-            .send(HubEvent::PeerMsg(PeerMsg {
-              peer_id: id,
-              data: Bytes::from(line.into_bytes()),
-            }))
-            .await
-            .unwrap()
+    if !self.disable_input {
+      // start reader thread
+      let hub_tx = self.hub_tx.clone();
+      let id = self.id;
+      tokio::spawn(async move {
+        let stdin = io::stdin();
+        loop {
+          // read line
+          let mut line = String::new();
+          if stdin.read_line(&mut line).is_err() {
+            break;
+          } else {
+            // send
+            hub_tx
+              .send(HubEvent::PeerMsg(PeerMsg {
+                peer_id: id,
+                data: Bytes::from(line.into_bytes()),
+              }))
+              .await
+              .unwrap()
+          }
         }
-      }
-    });
+      });
+    }
 
     // start writer thread
     if let Some(mut rx) = self.rx.take() {
