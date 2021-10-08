@@ -1,9 +1,6 @@
 use bytes::Bytes;
-use std::{
-  io::{self, Stdout, Write},
-  sync::mpsc::Sender,
-  thread,
-};
+use std::io::{self, Stdout, Write};
+use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::model::{Event, Peer, PeerMsg, Result};
 
@@ -11,26 +8,26 @@ pub struct StdioPeer {
   tag: String,
   id: i32,
   hub_tx: Sender<Event>,
+  tx: Sender<Bytes>,
+  rx: Receiver<Bytes>,
   stdout: Stdout,
 }
 
 impl StdioPeer {
-  pub fn new(id: i32, hub_tx: Sender<Event>) -> Box<dyn Peer> {
+  pub fn new(id: i32, hub_tx: Sender<Event>, buffer: usize) -> Box<dyn Peer> {
+    let (tx, rx) = mpsc::channel(buffer);
     Box::new(StdioPeer {
       tag: String::from("stdio"),
       id,
       hub_tx,
+      tx,
+      rx,
       stdout: io::stdout(),
     })
   }
 }
 
 impl Peer for StdioPeer {
-  fn write(&mut self, data: Bytes) -> Result<()> {
-    print!("{}", String::from_utf8_lossy(&data));
-    self.stdout.flush().unwrap();
-    Ok(())
-  }
   fn id(&self) -> i32 {
     self.id
   }
@@ -43,7 +40,9 @@ impl Peer for StdioPeer {
   fn start(&mut self) -> Result<()> {
     let hub_tx = self.hub_tx.clone();
     let id = self.id;
-    thread::spawn(move || {
+
+    // start reader thread
+    tokio::spawn(async move {
       let stdin = io::stdin();
       loop {
         // read line
@@ -57,10 +56,27 @@ impl Peer for StdioPeer {
               peer_id: id,
               data: Bytes::from(line.into_bytes()),
             }))
+            .await
             .unwrap()
         }
       }
     });
+
+    // start writer thread
+    let rx = self.rx;
+    let stdout = self.stdout;
+    tokio::spawn(async move {
+      loop {
+        let data = rx.recv().await.unwrap();
+        print!("{}", String::from_utf8_lossy(&data));
+        stdout.flush().unwrap();
+      }
+    });
+
     Ok(())
+  }
+
+  fn tx(&self) -> &Sender<Bytes> {
+    &self.tx
   }
 }
