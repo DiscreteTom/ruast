@@ -38,9 +38,12 @@ impl EventHub {
     }
   }
 
-  pub fn remove_peer(&self, id: i32) -> Result<()> {
+  pub async fn remove_peer(&self, id: i32) -> Result<()> {
     match self.peers.borrow_mut().remove(&id) {
-      Some(_) => Ok(()),
+      Some(p) => {
+        p.tx().send(PeerEvent::Stop).await.unwrap();
+        Ok(())
+      }
       None => Err(Box::new(Error::PeerNotExist(id))),
     }
   }
