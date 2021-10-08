@@ -1,11 +1,12 @@
 use bytes::Bytes;
 use std::{collections::HashMap, fmt};
+use tokio::sync::mpsc::Sender;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub type MultiResult<T> = HashMap<i32, Result<T>>;
 
 pub trait Peer {
-  fn write(&mut self, data: Bytes) -> Result<()>;
+  fn tx(&self) -> Sender<Bytes>;
   fn id(&self) -> i32;
   fn set_tag(&mut self, tag: &str);
   fn tag(&self) -> &str;
