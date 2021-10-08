@@ -6,7 +6,7 @@ pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub type MultiResult<T> = HashMap<i32, Result<T>>;
 
 pub trait Peer {
-  fn tx(&self) -> Sender<Bytes>;
+  fn tx(&self) -> &Sender<Bytes>;
   fn id(&self) -> i32;
   fn set_tag(&mut self, tag: &str);
   fn tag(&self) -> &str;
