@@ -2,18 +2,18 @@ use bytes::Bytes;
 use std::io::{self, Write};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
-use crate::model::{Event, Peer, PeerMsg, Result};
+use crate::model::{HubEvent, Peer, PeerMsg, Result};
 
 pub struct StdioPeer {
   tag: String,
   id: i32,
-  hub_tx: Sender<Event>,
+  hub_tx: Sender<HubEvent>,
   tx: Sender<Bytes>,
   rx: Option<Receiver<Bytes>>,
 }
 
 impl StdioPeer {
-  pub fn new(id: i32, hub_tx: Sender<Event>, buffer: usize) -> Box<dyn Peer> {
+  pub fn new(id: i32, hub_tx: Sender<HubEvent>, buffer: usize) -> Box<dyn Peer> {
     let (tx, rx) = mpsc::channel(buffer);
     Box::new(StdioPeer {
       tag: String::from("stdio"),
@@ -53,7 +53,7 @@ impl Peer for StdioPeer {
         } else {
           // send
           hub_tx
-            .send(Event::PeerMsg(PeerMsg {
+            .send(HubEvent::PeerMsg(PeerMsg {
               peer_id: id,
               data: Bytes::from(line.into_bytes()),
             }))

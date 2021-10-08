@@ -1,4 +1,4 @@
-use rua::{controller::EventHub, model::Event, peer::StdioPeer};
+use rua::{controller::EventHub, model::HubEvent, peer::StdioPeer};
 
 #[tokio::main]
 pub async fn main() {
@@ -6,7 +6,7 @@ pub async fn main() {
   h.add_peer(StdioPeer::new(0, h.tx_clone(), 256)).unwrap();
   loop {
     match h.recv().await {
-      Event::PeerMsg(msg) => h.echo(msg).await.unwrap(),
+      HubEvent::PeerMsg(msg) => h.echo(msg).await.unwrap(),
       _ => break,
     }
   }

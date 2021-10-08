@@ -2,7 +2,7 @@ use std::error::Error;
 
 use rua::{
   controller::EventHub,
-  model::Event,
+  model::HubEvent,
   peer::{FilePeer, StdioPeer},
 };
 
@@ -15,7 +15,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
   loop {
     match h.recv().await {
-      Event::PeerMsg(msg) => {
+      HubEvent::PeerMsg(msg) => {
         h.broadcast_all(msg.data).await;
       }
       _ => break,

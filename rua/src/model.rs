@@ -22,7 +22,7 @@ pub struct PeerMsg {
 }
 
 #[derive(Debug)]
-pub enum Event {
+pub enum HubEvent {
   Custom(u32),
   PeerMsg(PeerMsg),
   Stop,

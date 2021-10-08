@@ -5,12 +5,12 @@ use std::{
 };
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
-use crate::model::{Error, Event, MultiResult, Peer, PeerMsg, Result};
+use crate::model::{Error, HubEvent, MultiResult, Peer, PeerMsg, Result};
 
 pub struct EventHub {
   peers: RefCell<HashMap<i32, Box<dyn Peer>>>,
-  tx: Sender<Event>,
-  rx: Receiver<Event>,
+  tx: Sender<HubEvent>,
+  rx: Receiver<HubEvent>,
 }
 
 impl EventHub {
@@ -23,11 +23,11 @@ impl EventHub {
     }
   }
 
-  pub fn tx_clone(&self) -> Sender<Event> {
+  pub fn tx_clone(&self) -> Sender<HubEvent> {
     self.tx.clone()
   }
 
-  pub async fn recv(&mut self) -> Event {
+  pub async fn recv(&mut self) -> HubEvent {
     self.rx.recv().await.unwrap()
   }
 
@@ -46,7 +46,7 @@ impl EventHub {
   }
 
   pub async fn stop(&self) {
-    self.tx.send(Event::Stop).await.unwrap();
+    self.tx.send(HubEvent::Stop).await.unwrap();
   }
 
   pub async fn write_to(&self, id: i32, data: Bytes) -> Result<()> {

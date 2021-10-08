@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rua::{
   controller::{EventHub, LockstepController},
-  model::Event,
+  model::HubEvent,
   peer::StdioPeer,
 };
 
@@ -11,15 +11,15 @@ fn main() {
   let h = EventHub::new();
 
   let lockstep_op_code = 0;
-  let mut lockstepper = LockstepController::new(1000, h.tx(), lockstep_op_code);
+  let mut lockstepper = LockstepController::new(1000, h.tx_clone(), lockstep_op_code);
   lockstepper.next_step();
 
-  h.add_peer(StdioPeer::new(0, h.tx())).unwrap();
+  h.add_peer(StdioPeer::new(0, h.tx_clone())).unwrap();
 
   loop {
     match h.recv() {
-      Event::PeerMsg(msg) => peer_msgs.push(msg.data),
-      Event::Custom(code) => {
+      HubEvent::PeerMsg(msg) => peer_msgs.push(msg.data),
+      HubEvent::Custom(code) => {
         if code == lockstep_op_code {
           // write current step
           h.broadcast_all(Arc::new(
