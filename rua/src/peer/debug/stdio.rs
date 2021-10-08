@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use std::io::{self, Stdout, Write};
+use std::io::{self, Write};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::model::{Event, Peer, PeerMsg, Result};
@@ -9,8 +9,7 @@ pub struct StdioPeer {
   id: i32,
   hub_tx: Sender<Event>,
   tx: Sender<Bytes>,
-  rx: Receiver<Bytes>,
-  stdout: Stdout,
+  rx: Option<Receiver<Bytes>>,
 }
 
 impl StdioPeer {
@@ -21,13 +20,15 @@ impl StdioPeer {
       id,
       hub_tx,
       tx,
-      rx,
-      stdout: io::stdout(),
+      rx: Some(rx),
     })
   }
 }
 
 impl Peer for StdioPeer {
+  fn tx(&self) -> &Sender<Bytes> {
+    &self.tx
+  }
   fn id(&self) -> i32 {
     self.id
   }
@@ -37,11 +38,11 @@ impl Peer for StdioPeer {
   fn tag(&self) -> &str {
     &self.tag
   }
+
   fn start(&mut self) -> Result<()> {
+    // start reader thread
     let hub_tx = self.hub_tx.clone();
     let id = self.id;
-
-    // start reader thread
     tokio::spawn(async move {
       let stdin = io::stdin();
       loop {
@@ -63,20 +64,19 @@ impl Peer for StdioPeer {
     });
 
     // start writer thread
-    let rx = self.rx;
-    let stdout = self.stdout;
-    tokio::spawn(async move {
-      loop {
-        let data = rx.recv().await.unwrap();
-        print!("{}", String::from_utf8_lossy(&data));
-        stdout.flush().unwrap();
-      }
-    });
+    if let Some(mut rx) = self.rx.take() {
+      tokio::spawn(async move {
+        let mut stdout = io::stdout();
+        loop {
+          let data = rx.recv().await.unwrap();
+          print!("{}", String::from_utf8_lossy(&data));
+          stdout.flush().unwrap();
+        }
+      });
+    } else {
+      panic!("stdio error")
+    }
 
     Ok(())
-  }
-
-  fn tx(&self) -> &Sender<Bytes> {
-    &self.tx
   }
 }
