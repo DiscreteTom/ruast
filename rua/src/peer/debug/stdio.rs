@@ -2,14 +2,14 @@ use bytes::Bytes;
 use std::io::{self, Write};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
-use crate::model::{HubEvent, Peer, PeerMsg, Result};
+use crate::model::{HubEvent, Peer, PeerEvent, PeerMsg, Result};
 
 pub struct StdioPeer {
   tag: String,
   id: i32,
   hub_tx: Sender<HubEvent>,
-  tx: Sender<Bytes>,
-  rx: Option<Receiver<Bytes>>,
+  tx: Sender<PeerEvent>,
+  rx: Option<Receiver<PeerEvent>>,
 }
 
 impl StdioPeer {
@@ -26,7 +26,7 @@ impl StdioPeer {
 }
 
 impl Peer for StdioPeer {
-  fn tx(&self) -> &Sender<Bytes> {
+  fn tx(&self) -> &Sender<PeerEvent> {
     &self.tx
   }
   fn id(&self) -> i32 {
@@ -68,9 +68,13 @@ impl Peer for StdioPeer {
       tokio::spawn(async move {
         let mut stdout = io::stdout();
         loop {
-          let data = rx.recv().await.unwrap();
-          print!("{}", String::from_utf8_lossy(&data));
-          stdout.flush().unwrap();
+          match rx.recv().await.unwrap() {
+            PeerEvent::Write(data) => {
+              print!("{}", String::from_utf8_lossy(&data));
+              stdout.flush().unwrap();
+            }
+            PeerEvent::Stop => break,
+          }
         }
       });
     } else {

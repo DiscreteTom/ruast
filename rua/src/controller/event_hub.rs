@@ -5,7 +5,7 @@ use std::{
 };
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
-use crate::model::{Error, HubEvent, MultiResult, Peer, PeerMsg, Result};
+use crate::model::{Error, HubEvent, MultiResult, Peer, PeerEvent, PeerMsg, Result};
 
 pub struct EventHub {
   peers: RefCell<HashMap<i32, Box<dyn Peer>>>,
@@ -51,7 +51,7 @@ impl EventHub {
 
   pub async fn write_to(&self, id: i32, data: Bytes) -> Result<()> {
     match self.peers.borrow_mut().get_mut(&id) {
-      Some(peer) => Ok(peer.tx().send(data).await?),
+      Some(peer) => Ok(peer.tx().send(PeerEvent::Write(data)).await?),
       None => Err(Box::new(Error::PeerNotExist(id))),
     }
   }
@@ -67,7 +67,7 @@ impl EventHub {
     let mut result = HashMap::with_capacity(self.peers.borrow().len());
     for (id, p) in self.peers.borrow_mut().iter_mut() {
       let t = if selector(p) {
-        match p.tx().send(data.clone()).await {
+        match p.tx().send(PeerEvent::Write(data.clone())).await {
           Ok(_) => Ok(true),
           Err(e) => Err(Box::new(e) as Box<dyn std::error::Error>),
         }

@@ -1,17 +1,16 @@
-use bytes::Bytes;
 use tokio::{
   io::AsyncWriteExt,
   sync::mpsc::{self, Receiver, Sender},
 };
 
-use crate::model::{Peer, Result};
+use crate::model::{Peer, PeerEvent, Result};
 
 pub struct FilePeer {
   tag: String,
   id: i32,
   filename: String,
-  tx: Sender<Bytes>,
-  rx: Option<Receiver<Bytes>>,
+  tx: Sender<PeerEvent>,
+  rx: Option<Receiver<PeerEvent>>,
 }
 
 impl FilePeer {
@@ -28,7 +27,7 @@ impl FilePeer {
 }
 
 impl Peer for FilePeer {
-  fn tx(&self) -> &Sender<Bytes> {
+  fn tx(&self) -> &Sender<PeerEvent> {
     &self.tx
   }
   fn id(&self) -> i32 {
@@ -54,9 +53,13 @@ impl Peer for FilePeer {
           .await
           .unwrap();
         loop {
-          let data = rx.recv().await.unwrap();
-          file.write_all(&data).await.unwrap();
-          file.sync_data().await.unwrap();
+          match rx.recv().await.unwrap() {
+            PeerEvent::Write(data) => {
+              file.write_all(&data).await.unwrap();
+              file.sync_data().await.unwrap();
+            }
+            PeerEvent::Stop => break,
+          }
         }
       });
     } else {
