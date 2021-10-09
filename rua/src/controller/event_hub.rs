@@ -28,7 +28,7 @@ impl EventHub {
   }
 
   pub async fn recv(&mut self) -> HubEvent {
-    self.rx.recv().await.unwrap()
+    self.rx.recv().await.unwrap() // rx.recv will not return error
   }
 
   pub fn add_peer(&self, peer: Box<dyn Peer>) -> Result<()> {
@@ -44,7 +44,7 @@ impl EventHub {
   pub async fn remove_peer(&self, id: i32) -> Result<()> {
     match self.peers.borrow_mut().remove(&id) {
       Some(p) => {
-        p.tx().send(PeerEvent::Stop).await.unwrap();
+        p.tx().send(PeerEvent::Stop).await.ok();
         Ok(())
       }
       None => Err(Box::new(Error::PeerNotExist(id))),
@@ -52,7 +52,11 @@ impl EventHub {
   }
 
   pub async fn stop(&self) {
-    self.tx.send(HubEvent::Stop).await.unwrap();
+    self
+      .tx
+      .send(HubEvent::Stop)
+      .await
+      .expect("Failed to stop EventHub");
   }
 
   pub async fn write_to(&self, id: i32, data: Bytes) -> Result<()> {
