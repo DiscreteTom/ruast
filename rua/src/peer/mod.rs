@@ -1,4 +1,4 @@
 pub mod debug;
-pub use debug::stdio::StdioPeer;
+pub use debug::stdio::StdioPeerBuilder;
 pub mod persistent;
-pub use persistent::file::FilePeer;
+pub use persistent::file::FilePeerBuilder;
