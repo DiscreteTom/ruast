@@ -13,6 +13,7 @@ pub async fn main() -> Result<()> {
   loop {
     match h.recv().await {
       HubEvent::PeerMsg(msg) => h.echo(msg).await?,
+      HubEvent::RemovePeer(id) => h.remove_peer(id).await?,
       _ => break,
     }
   }

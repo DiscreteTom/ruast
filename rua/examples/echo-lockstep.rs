@@ -36,6 +36,7 @@ pub async fn main() -> Result<()> {
           lockstepper.next_step();
         }
       }
+      HubEvent::RemovePeer(id) => h.remove_peer(id).await?,
       _ => break,
     }
   }

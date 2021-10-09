@@ -59,6 +59,7 @@ impl WebsocketPeer {
           Some(msg) => {
             let msg = msg.unwrap();
             if msg.is_close() {
+              hub_tx.send(HubEvent::RemovePeer(id)).await.unwrap();
               break;
             } else {
               hub_tx

@@ -40,6 +40,7 @@ pub async fn main() -> Result<()> {
           current_peer_id += 1;
         }
       }
+      HubEvent::RemovePeer(id) => h.remove_peer(id).await?,
       _ => break,
     }
   }

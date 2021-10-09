@@ -20,6 +20,7 @@ pub async fn main() -> Result<()> {
       HubEvent::PeerMsg(msg) => {
         h.broadcast_all(msg.data).await;
       }
+      HubEvent::RemovePeer(id) => h.remove_peer(id).await?,
       _ => break,
     }
   }
