@@ -22,6 +22,7 @@ pub struct PeerMsg {
 pub enum HubEvent {
   Custom(u32),
   PeerMsg(PeerMsg),
+  RemovePeer(i32),
   Stop,
 }
 
