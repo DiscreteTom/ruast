@@ -1,2 +1,2 @@
 [workspace]
-members = ["rua", "plugin/network/tungstenite"]
+members = ["rua", "plugin/network/tungstenite", "macro"]
