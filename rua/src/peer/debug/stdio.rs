@@ -70,7 +70,7 @@ impl StdioActivePeer {
     buffer: usize,
     disable_input: bool,
   ) -> Self {
-    let (tx, rx) = mpsc::channel(buffer);
+    let (tx, mut rx) = mpsc::channel(buffer);
 
     // reader thread
     if !disable_input {
