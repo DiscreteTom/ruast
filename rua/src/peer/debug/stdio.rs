@@ -98,7 +98,7 @@ impl StdioPeer {
       }
     });
 
-    StdioPeer { tag, id, tx }
+    Self { tag, id, tx }
   }
 }
 
