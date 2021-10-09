@@ -3,18 +3,18 @@ use tokio::{
   sync::mpsc::{self, Sender},
 };
 
-use crate::model::{ActivePeer, Peer, PeerEvent};
+use crate::model::{Peer, PeerEvent, Result};
 
-pub struct FilePeer {
+pub struct FilePeerBuilder {
   tag: String,
   id: i32,
   filename: String,
   buffer: usize,
 }
 
-impl FilePeer {
+impl FilePeerBuilder {
   pub fn new(id: i32, filename: String, buffer: usize) -> Self {
-    FilePeer {
+    Self {
       tag: String::from("file"),
       id,
       filename,
@@ -27,45 +27,32 @@ impl FilePeer {
     self
   }
 
-  pub fn boxed(self) -> Box<dyn Peer> {
-    Box::new(self)
-  }
-}
-
-impl Peer for FilePeer {
-  fn id(&self) -> i32 {
-    self.id
-  }
-
-  fn start(self) -> Box<dyn ActivePeer> {
-    Box::new(FileActivePeer::new(
-      self.id,
-      self.tag,
-      self.filename,
-      self.buffer,
+  pub async fn build(self) -> Result<Box<dyn Peer>> {
+    Ok(Box::new(
+      FilePeer::new(self.id, self.tag, self.filename, self.buffer).await?,
     ))
   }
 }
 
-pub struct FileActivePeer {
+pub struct FilePeer {
   tag: String,
   id: i32,
   tx: Sender<PeerEvent>,
 }
 
-impl FileActivePeer {
-  pub fn new(id: i32, tag: String, filename: String, buffer: usize) -> Self {
+impl FilePeer {
+  async fn new(id: i32, tag: String, filename: String, buffer: usize) -> Result<Self> {
     let (tx, mut rx) = mpsc::channel(buffer);
+
+    let mut file = tokio::fs::OpenOptions::new()
+      .create(true)
+      .write(true)
+      .append(true)
+      .open(filename)
+      .await?;
 
     // writer thread
     tokio::spawn(async move {
-      let mut file = tokio::fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .append(true)
-        .open(filename)
-        .await
-        .unwrap();
       loop {
         match rx.recv().await.unwrap() {
           PeerEvent::Write(data) => {
@@ -77,11 +64,11 @@ impl FileActivePeer {
       }
     });
 
-    FileActivePeer { id, tag, tx }
+    Ok(Self { id, tag, tx })
   }
 }
 
-impl ActivePeer for FileActivePeer {
+impl Peer for FilePeer {
   fn tx(&self) -> &Sender<PeerEvent> {
     &self.tx
   }
