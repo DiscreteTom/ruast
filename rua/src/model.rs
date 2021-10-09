@@ -14,7 +14,7 @@ pub trait ActivePeer {
 
 pub trait Peer {
   fn id(&self) -> i32;
-  fn start(&mut self) -> Box<dyn ActivePeer>;
+  fn start(self) -> Box<dyn ActivePeer>;
 }
 
 #[derive(Clone, Debug)]
