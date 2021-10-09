@@ -2,9 +2,9 @@ use bytes::Bytes;
 use std::io::{self, Write};
 use tokio::sync::mpsc::{self, Sender};
 
-use crate::model::{ActivePeer, HubEvent, Peer, PeerEvent, PeerMsg};
+use crate::model::{HubEvent, Peer, PeerEvent, PeerMsg};
 
-pub struct StdioPeer {
+pub struct StdioPeerBuilder {
   tag: String,
   id: i32,
   hub_tx: Sender<HubEvent>,
@@ -12,9 +12,9 @@ pub struct StdioPeer {
   buffer: usize,
 }
 
-impl StdioPeer {
+impl StdioPeerBuilder {
   pub fn new(id: i32, hub_tx: Sender<HubEvent>, buffer: usize) -> Self {
-    StdioPeer {
+    Self {
       tag: String::from("stdio"),
       id,
       hub_tx,
@@ -33,18 +33,8 @@ impl StdioPeer {
     self
   }
 
-  pub fn boxed(self) -> Box<dyn Peer> {
-    Box::new(self)
-  }
-}
-
-impl Peer for StdioPeer {
-  fn id(&self) -> i32 {
-    self.id
-  }
-
-  fn start(self) -> Box<dyn ActivePeer> {
-    Box::new(StdioActivePeer::new(
+  fn build(self) -> Box<dyn Peer> {
+    Box::new(StdioPeer::new(
       self.id,
       self.tag,
       self.hub_tx,
@@ -54,7 +44,7 @@ impl Peer for StdioPeer {
   }
 }
 
-pub struct StdioActivePeer {
+pub struct StdioPeer {
   tag: String,
   id: i32,
   hub_tx: Sender<HubEvent>,
@@ -62,8 +52,8 @@ pub struct StdioActivePeer {
   disable_input: bool,
 }
 
-impl StdioActivePeer {
-  pub fn new(
+impl StdioPeer {
+  fn new(
     id: i32,
     tag: String,
     hub_tx: Sender<HubEvent>,
@@ -111,7 +101,7 @@ impl StdioActivePeer {
       }
     });
 
-    StdioActivePeer {
+    StdioPeer {
       tag,
       id,
       hub_tx,
@@ -121,7 +111,7 @@ impl StdioActivePeer {
   }
 }
 
-impl ActivePeer for StdioActivePeer {
+impl Peer for StdioPeer {
   fn tx(&self) -> &Sender<PeerEvent> {
     &self.tx
   }
