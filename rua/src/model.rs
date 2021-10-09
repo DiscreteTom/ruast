@@ -5,14 +5,15 @@ use tokio::sync::mpsc::Sender;
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub type MultiResult<T> = HashMap<i32, Result<T>>;
 
-pub trait Peer {
+pub trait ActivePeer {
   fn tx(&self) -> &Sender<PeerEvent>;
   fn id(&self) -> i32;
   fn set_tag(&mut self, tag: &str);
   fn tag(&self) -> &str;
-  fn start(&mut self) -> Result<()> {
-    Ok(())
-  }
+}
+
+pub trait Peer {
+  fn start(&mut self) -> Box<dyn ActivePeer>;
 }
 
 #[derive(Clone, Debug)]
