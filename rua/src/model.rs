@@ -12,11 +12,6 @@ pub trait ActivePeer {
   fn tag(&self) -> &str;
 }
 
-pub trait Peer {
-  fn id(&self) -> i32;
-  fn start(self) -> Box<dyn ActivePeer>;
-}
-
 #[derive(Clone, Debug)]
 pub struct PeerMsg {
   pub peer_id: i32,
