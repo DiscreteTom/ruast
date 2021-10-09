@@ -5,7 +5,7 @@ use std::{
 };
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
-use crate::model::{ActivePeer, Error, HubEvent, MultiResult, Peer, PeerEvent, PeerMsg, Result};
+use crate::model::{ActivePeer, Error, HubEvent, MultiResult, PeerEvent, PeerMsg, Result};
 
 pub struct EventHub {
   peers: RefCell<HashMap<i32, Box<dyn ActivePeer>>>,
@@ -31,11 +31,11 @@ impl EventHub {
     self.rx.recv().await.unwrap()
   }
 
-  pub fn add_peer(&self, peer: Box<dyn Peer>) -> Result<()> {
+  pub fn add_peer(&self, peer: Box<dyn ActivePeer>) -> Result<()> {
     match self.peers.borrow_mut().entry(peer.id()) {
       Entry::Occupied(_) => Err(Box::new(Error::PeerAlreadyExist(peer.id()))),
       Entry::Vacant(e) => {
-        e.insert(peer.start());
+        e.insert(peer);
         Ok(())
       }
     }
