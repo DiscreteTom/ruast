@@ -11,15 +11,24 @@ use tokio_tungstenite::tungstenite::Message;
 #[derive(Debug)]
 pub struct WebsocketPeerBuilder {
   ws: TcpStream,
+  tag: String,
 }
 
 impl WebsocketPeerBuilder {
   pub fn new(ws: TcpStream) -> Self {
-    WebsocketPeerBuilder { ws }
+    WebsocketPeerBuilder {
+      ws,
+      tag: String::from("websocket"),
+    }
+  }
+
+  pub fn with_tag(&mut self, tag: String) -> &Self {
+    self.tag = tag;
+    self
   }
 
   pub async fn build(self, id: i32, hub_tx: Sender<HubEvent>, buffer: usize) -> Box<dyn Peer> {
-    Box::new(WebsocketPeer::new(id, hub_tx, self.ws, buffer).await)
+    Box::new(WebsocketPeer::new(id, hub_tx, self.ws, buffer, self.tag).await)
   }
 }
 
@@ -31,7 +40,13 @@ pub struct WebsocketPeer {
 }
 
 impl WebsocketPeer {
-  async fn new(id: i32, hub_tx: Sender<HubEvent>, ws: TcpStream, buffer: usize) -> Self {
+  async fn new(
+    id: i32,
+    hub_tx: Sender<HubEvent>,
+    ws: TcpStream,
+    buffer: usize,
+    tag: String,
+  ) -> Self {
     let (tx, mut rx) = mpsc::channel(buffer);
 
     let ws_stream = tokio_tungstenite::accept_async(ws).await.unwrap();
@@ -72,10 +87,6 @@ impl WebsocketPeer {
       }
     });
 
-    Self {
-      id,
-      tx,
-      tag: String::from("websocket"),
-    }
+    Self { id, tx, tag }
   }
 }
