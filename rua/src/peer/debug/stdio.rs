@@ -71,6 +71,8 @@ impl StdioPeer {
           if stdin.read_line(&mut line).is_err() {
             break;
           } else {
+            // remove tail '\n'
+            line.pop();
             // send
             hub_tx
               .send(HubEvent::PeerMsg(PeerMsg {
@@ -90,7 +92,7 @@ impl StdioPeer {
       loop {
         match rx.recv().await.unwrap() {
           PeerEvent::Write(data) => {
-            print!("{}", String::from_utf8_lossy(&data));
+            println!("{}", String::from_utf8_lossy(&data));
             stdout.flush().unwrap();
           }
           PeerEvent::Stop => break,
