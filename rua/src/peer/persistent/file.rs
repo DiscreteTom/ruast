@@ -1,4 +1,4 @@
-use rua_macro::PeerMacro;
+use rua_macro::BasicPeer;
 use tokio::{
   io::AsyncWriteExt,
   sync::mpsc::{self, Sender},
@@ -35,7 +35,7 @@ impl FilePeerBuilder {
   }
 }
 
-#[derive(PeerMacro)]
+#[derive(BasicPeer)]
 pub struct FilePeer {
   tag: String,
   id: i32,

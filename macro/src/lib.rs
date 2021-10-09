@@ -4,7 +4,7 @@ use crate::proc_macro::TokenStream;
 use quote::quote;
 use syn::{self, parse, DeriveInput};
 
-#[proc_macro_derive(PeerMacro)]
+#[proc_macro_derive(BasicPeer)]
 pub fn peer_derive(input: TokenStream) -> TokenStream {
   let ast: DeriveInput = parse(input).unwrap();
   let name = &ast.ident;

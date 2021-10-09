@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use rua_macro::PeerMacro;
+use rua_macro::BasicPeer;
 use std::io::{self, Write};
 use tokio::sync::mpsc::{self, Sender};
 
@@ -45,7 +45,7 @@ impl StdioPeerBuilder {
   }
 }
 
-#[derive(PeerMacro)]
+#[derive(BasicPeer)]
 pub struct StdioPeer {
   tag: String,
   id: i32,
