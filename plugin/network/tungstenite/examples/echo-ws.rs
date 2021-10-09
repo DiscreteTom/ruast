@@ -5,7 +5,7 @@ use rua::{
 };
 use rua_tungstenite::listener::WebsocketListener;
 
-const WS_LISTENER_ADDR: &str = "localhost:8080";
+const WS_LISTENER_ADDR: &str = "127.0.0.1:8080";
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
