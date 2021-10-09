@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use rua_macro::PeerMacro;
 use std::io::{self, Write};
 use tokio::sync::mpsc::{self, Sender};
 
@@ -44,6 +45,7 @@ impl StdioPeerBuilder {
   }
 }
 
+#[derive(PeerMacro)]
 pub struct StdioPeer {
   tag: String,
   id: i32,
@@ -101,20 +103,5 @@ impl StdioPeer {
     });
 
     Self { tag, id, tx }
-  }
-}
-
-impl Peer for StdioPeer {
-  fn tx(&self) -> &Sender<PeerEvent> {
-    &self.tx
-  }
-  fn id(&self) -> i32 {
-    self.id
-  }
-  fn set_tag(&mut self, tag: String) {
-    self.tag = tag;
-  }
-  fn tag(&self) -> &str {
-    &self.tag
   }
 }

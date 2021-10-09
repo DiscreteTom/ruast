@@ -1,3 +1,4 @@
+use rua_macro::PeerMacro;
 use tokio::{
   io::AsyncWriteExt,
   sync::mpsc::{self, Sender},
@@ -34,6 +35,7 @@ impl FilePeerBuilder {
   }
 }
 
+#[derive(PeerMacro)]
 pub struct FilePeer {
   tag: String,
   id: i32,
@@ -65,20 +67,5 @@ impl FilePeer {
     });
 
     Ok(Self { id, tag, tx })
-  }
-}
-
-impl Peer for FilePeer {
-  fn tx(&self) -> &Sender<PeerEvent> {
-    &self.tx
-  }
-  fn id(&self) -> i32 {
-    self.id
-  }
-  fn set_tag(&mut self, tag: String) {
-    self.tag = tag;
-  }
-  fn tag(&self) -> &str {
-    &self.tag
   }
 }
