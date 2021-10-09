@@ -1,77 +1,97 @@
-use std::{
+use bytes::Bytes;
+use futures_util::{SinkExt, StreamExt};
+use rua::model::{HubEvent, Peer, PeerEvent, PeerMsg};
+use tokio::{
   net::TcpStream,
-  sync::{mpsc::Sender, Arc, Mutex},
-  thread,
-  time::SystemTime,
+  sync::mpsc::{self, Sender},
 };
+use tokio_tungstenite::tungstenite::Message;
 
-use rua::model::{Data, Event, Peer, PeerMsg, Result};
-use tungstenite::{Message, WebSocket};
-
+#[derive(Debug)]
 pub struct WebsocketPeerBuilder {
-  ws: WebSocket<TcpStream>,
+  ws: TcpStream,
 }
 
 impl WebsocketPeerBuilder {
-  pub fn new(ws: WebSocket<TcpStream>) -> Self {
+  pub fn new(ws: TcpStream) -> Self {
     WebsocketPeerBuilder { ws }
   }
 
-  pub fn build(self, id: i32, hub_tx: Sender<Event>) -> Box<dyn Peer> {
-    Box::new(WebsocketPeer::new(id, hub_tx, self.ws))
+  pub async fn build(self, id: i32, hub_tx: Sender<HubEvent>, buffer: usize) -> Box<dyn Peer> {
+    Box::new(WebsocketPeer::new(id, hub_tx, self.ws, buffer).await)
   }
 }
 
 pub struct WebsocketPeer {
   id: i32,
   tag: String,
-  hub_tx: Sender<Event>,
-  ws: Arc<WebSocket<TcpStream>>,
+  tx: Sender<PeerEvent>,
 }
 
 impl WebsocketPeer {
-  pub fn new(id: i32, hub_tx: Sender<Event>, ws: WebSocket<TcpStream>) -> WebsocketPeer {
-    WebsocketPeer {
+  async fn new(id: i32, hub_tx: Sender<HubEvent>, ws: TcpStream, buffer: usize) -> Self {
+    let (tx, mut rx) = mpsc::channel(buffer);
+
+    let ws_stream = tokio_tungstenite::accept_async(ws).await.unwrap();
+    let (mut writer, mut reader) = ws_stream.split();
+
+    // reader thread
+    tokio::spawn(async move {
+      loop {
+        match reader.next().await {
+          Some(msg) => {
+            let msg = msg.unwrap();
+            if msg.is_close() {
+              break;
+            } else {
+              hub_tx
+                .send(HubEvent::PeerMsg(PeerMsg {
+                  peer_id: id,
+                  data: Bytes::from(msg.into_data()),
+                }))
+                .await
+                .unwrap();
+            }
+          }
+          None => break,
+        }
+      }
+    });
+
+    // writer thread
+    tokio::spawn(async move {
+      loop {
+        match rx.recv().await.unwrap() {
+          PeerEvent::Write(data) => {
+            writer.send(Message::Binary(data.to_vec())).await.unwrap();
+          }
+          PeerEvent::Stop => break,
+        }
+      }
+    });
+
+    Self {
       id,
-      hub_tx,
-      ws: Arc::new(ws),
+      tx,
       tag: String::from("websocket"),
     }
   }
 }
 
 impl Peer for WebsocketPeer {
-  fn write(&mut self, data: Data) -> Result<()> {
-    Ok(self.ws.write_message(Message::Binary(data.to_vec()))?)
-  }
-
   fn id(&self) -> i32 {
     self.id
   }
 
-  fn set_tag(&mut self, tag: &str) {
-    self.tag = String::from(tag);
+  fn set_tag(&mut self, tag: String) {
+    self.tag = tag;
   }
 
   fn tag(&self) -> &str {
     &self.tag
   }
 
-  fn start(&mut self) -> Result<()> {
-    let ws = self.ws.clone();
-    let hub_tx = self.hub_tx.clone();
-    let peer_id = self.id;
-    thread::spawn(move || loop {
-      let msg = ws.read_message().unwrap();
-      hub_tx
-        .send(Event::PeerMsg(PeerMsg {
-          peer_id,
-          data: Arc::new(msg.into_data()),
-          time: SystemTime::now(),
-        }))
-        .unwrap();
-    });
-
-    Ok(())
+  fn tx(&self) -> &Sender<PeerEvent> {
+    &self.tx
   }
 }
