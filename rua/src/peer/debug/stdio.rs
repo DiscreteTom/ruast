@@ -33,7 +33,7 @@ impl StdioPeerBuilder {
     self
   }
 
-  fn build(self) -> Box<dyn Peer> {
+  pub fn build(self) -> Box<dyn Peer> {
     Box::new(StdioPeer::new(
       self.id,
       self.tag,
@@ -47,9 +47,7 @@ impl StdioPeerBuilder {
 pub struct StdioPeer {
   tag: String,
   id: i32,
-  hub_tx: Sender<HubEvent>,
   tx: Sender<PeerEvent>,
-  disable_input: bool,
 }
 
 impl StdioPeer {
@@ -64,7 +62,6 @@ impl StdioPeer {
 
     // reader thread
     if !disable_input {
-      let hub_tx = hub_tx.clone();
       let id = id;
       tokio::spawn(async move {
         let stdin = io::stdin();
@@ -101,13 +98,7 @@ impl StdioPeer {
       }
     });
 
-    StdioPeer {
-      tag,
-      id,
-      hub_tx,
-      tx,
-      disable_input,
-    }
+    StdioPeer { tag, id, tx }
   }
 }
 
