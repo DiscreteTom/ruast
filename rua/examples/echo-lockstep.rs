@@ -1,12 +1,12 @@
 use bytes::Bytes;
 use rua::{
   controller::{EventHub, LockstepController},
-  model::HubEvent,
-  peer::StdioPeer,
+  model::{HubEvent, Result},
+  peer::StdioPeerBuilder,
 };
 
 #[tokio::main]
-pub async fn main() {
+pub async fn main() -> Result<()> {
   let mut peer_msgs = Vec::new();
   let mut h = EventHub::new(256);
 
@@ -14,8 +14,7 @@ pub async fn main() {
   let mut lockstepper = LockstepController::new(1000, h.tx_clone(), lockstep_op_code);
   lockstepper.next_step();
 
-  h.add_peer(StdioPeer::new(0, h.tx_clone(), 256).build())
-    .unwrap();
+  h.add_peer(StdioPeerBuilder::new(0, h.tx_clone(), 256).build())?;
 
   loop {
     match h.recv().await {
@@ -40,4 +39,6 @@ pub async fn main() {
       _ => break,
     }
   }
+
+  Ok(())
 }
