@@ -40,7 +40,10 @@ pub async fn main() -> Result<()> {
               .recv()
               .await
               .unwrap()
-              .build(current_peer_id, h.tx_clone(), 256)
+              .id(current_peer_id)
+              .hub_tx(h.tx_clone())
+              .buffer(32)
+              .build()
               .await,
           )?;
           current_peer_id += 1;
