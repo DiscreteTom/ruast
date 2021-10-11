@@ -7,39 +7,54 @@ use crate::model::{HubEvent, Peer, PeerEvent, PeerMsg};
 
 pub struct StdioPeerBuilder {
   tag: String,
-  id: i32,
-  hub_tx: Sender<HubEvent>,
+  id: Option<i32>,
+  hub_tx: Option<Sender<HubEvent>>,
   disable_input: bool,
-  buffer: usize,
+  buffer: Option<usize>,
 }
 
 impl StdioPeerBuilder {
-  pub fn new(id: i32, hub_tx: Sender<HubEvent>, buffer: usize) -> Self {
+  pub fn new() -> Self {
     Self {
       tag: String::from("stdio"),
-      id,
-      hub_tx,
+      id: None,
+      hub_tx: None,
       disable_input: false,
-      buffer,
+      buffer: None,
     }
   }
 
-  pub fn disable_input(&mut self, disable: bool) -> &Self {
-    self.disable_input = disable;
+  pub fn id(mut self, id: i32) -> Self {
+    self.id = Some(id);
     self
   }
 
-  pub fn with_tag(&mut self, tag: String) -> &Self {
+  pub fn hub_tx(mut self, tx: Sender<HubEvent>) -> Self {
+    self.hub_tx = Some(tx);
+    self
+  }
+
+  pub fn tag(mut self, tag: String) -> Self {
     self.tag = tag;
+    self
+  }
+
+  pub fn buffer(mut self, buffer: usize) -> Self {
+    self.buffer = Some(buffer);
+    self
+  }
+
+  pub fn disable_input(mut self, disable: bool) -> Self {
+    self.disable_input = disable;
     self
   }
 
   pub fn build(self) -> Box<dyn Peer> {
     Box::new(StdioPeer::new(
-      self.id,
+      self.id.expect("id is required to build StdioPeer"),
       self.tag,
-      self.hub_tx,
-      self.buffer,
+      self.hub_tx.expect("hub_tx is required to build StdioPeer"),
+      self.buffer.expect("buffer is required to build StdioPeer"),
       self.disable_input,
     ))
   }
@@ -64,25 +79,26 @@ impl StdioPeer {
 
     // reader thread
     if !disable_input {
-      let id = id;
       tokio::spawn(async move {
         let stdin = io::stdin();
         loop {
           // read line
           let mut line = String::new();
-          if stdin.read_line(&mut line).is_err() {
-            break;
-          } else {
-            // remove tail '\n'
-            line.pop();
-            // send
-            hub_tx
-              .send(HubEvent::PeerMsg(PeerMsg {
-                peer_id: id,
-                data: Bytes::from(line.into_bytes()),
-              }))
-              .await
-              .unwrap()
+          match stdin.read_line(&mut line) {
+            Ok(0) => break, // EOF
+            Ok(_) => {
+              // remove tail '\n'
+              line.pop();
+              // send
+              hub_tx
+                .send(HubEvent::PeerMsg(PeerMsg {
+                  peer_id: id,
+                  data: Bytes::from(line.into_bytes()),
+                }))
+                .await
+                .unwrap()
+            }
+            Err(_) => break,
           }
         }
       });
