@@ -2,6 +2,8 @@ use bytes::Bytes;
 use std::{collections::HashMap, fmt};
 use tokio::sync::mpsc::Sender;
 
+use crate::controller::EventHub;
+
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub type MultiResult<T> = HashMap<i32, Result<T>>;
 
@@ -30,6 +32,11 @@ pub enum HubEvent {
 pub enum PeerEvent {
   Write(Bytes),
   Stop,
+}
+
+pub trait Plugin {
+  fn start(&self);
+  fn handle(&self, hub: &EventHub);
 }
 
 #[derive(Debug)]
