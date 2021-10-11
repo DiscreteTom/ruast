@@ -16,7 +16,10 @@ pub async fn main() -> Result<()> {
       .build(),
   )?;
   h.add_peer(
-    FilePeerBuilder::new(1, "log.txt".to_string(), 256)
+    FilePeerBuilder::new()
+      .id(1)
+      .filename("log.txt".to_string())
+      .buffer(32)
       .build()
       .await?,
   )?;
