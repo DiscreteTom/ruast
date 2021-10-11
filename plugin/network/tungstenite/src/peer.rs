@@ -10,25 +10,57 @@ use tokio_tungstenite::tungstenite::Message;
 
 #[derive(Debug)]
 pub struct WebsocketPeerBuilder {
-  ws: TcpStream,
   tag: String,
+  ws: Option<TcpStream>,
+  id: Option<i32>,
+  hub_tx: Option<Sender<HubEvent>>,
+  buffer: Option<usize>,
 }
 
 impl WebsocketPeerBuilder {
-  pub fn new(ws: TcpStream) -> Self {
+  pub fn new() -> Self {
     WebsocketPeerBuilder {
-      ws,
       tag: String::from("websocket"),
+      ws: None,
+      id: None,
+      hub_tx: None,
+      buffer: None,
     }
   }
 
-  pub fn with_tag(&mut self, tag: String) -> &Self {
+  pub fn ws(mut self, ws: TcpStream) -> Self {
+    self.ws = Some(ws);
+    self
+  }
+  pub fn id(mut self, id: i32) -> Self {
+    self.id = Some(id);
+    self
+  }
+  pub fn hub_tx(mut self, hub_tx: Sender<HubEvent>) -> Self {
+    self.hub_tx = Some(hub_tx);
+    self
+  }
+  pub fn buffer(mut self, buffer: usize) -> Self {
+    self.buffer = Some(buffer);
+    self
+  }
+
+  pub fn tag(mut self, tag: String) -> Self {
     self.tag = tag;
     self
   }
 
-  pub async fn build(self, id: i32, hub_tx: Sender<HubEvent>, buffer: usize) -> Box<dyn Peer> {
-    Box::new(WebsocketPeer::new(id, hub_tx, self.ws, buffer, self.tag).await)
+  pub async fn build(self) -> Box<dyn Peer> {
+    Box::new(
+      WebsocketPeer::new(
+        self.id.unwrap(),
+        self.hub_tx.unwrap(),
+        self.ws.unwrap(),
+        self.buffer.unwrap(),
+        self.tag,
+      )
+      .await,
+    )
   }
 }
 
@@ -59,6 +91,7 @@ impl WebsocketPeer {
           Some(msg) => {
             let msg = msg.unwrap();
             if msg.is_close() {
+              // remove self from EventHub
               hub_tx.send(HubEvent::RemovePeer(id)).await.unwrap();
               break;
             } else {

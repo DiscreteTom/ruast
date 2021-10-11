@@ -42,7 +42,7 @@ impl WebsocketListener {
         .unwrap();
       self
         .peer_tx
-        .send(WebsocketPeerBuilder::new(stream))
+        .send(WebsocketPeerBuilder::new().ws(stream))
         .await
         .unwrap();
     }

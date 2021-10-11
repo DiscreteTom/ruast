@@ -8,9 +8,18 @@ use rua::{
 pub async fn main() -> Result<()> {
   let mut h = EventHub::new(256);
 
-  h.add_peer(StdioPeerBuilder::new(0, h.tx_clone(), 256).build())?;
   h.add_peer(
-    FilePeerBuilder::new(1, "log.txt".to_string(), 256)
+    StdioPeerBuilder::new()
+      .id(0)
+      .buffer(32)
+      .hub_tx(h.tx_clone())
+      .build(),
+  )?;
+  h.add_peer(
+    FilePeerBuilder::new()
+      .id(1)
+      .filename("log.txt".to_string())
+      .buffer(32)
       .build()
       .await?,
   )?;

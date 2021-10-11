@@ -12,7 +12,13 @@ pub async fn main() -> Result<()> {
   let mut current_peer_id = 0;
 
   let mut h = EventHub::new(256);
-  h.add_peer(StdioPeerBuilder::new(current_peer_id, h.tx_clone(), 256).build())?;
+  h.add_peer(
+    StdioPeerBuilder::new()
+      .id(current_peer_id)
+      .buffer(32)
+      .hub_tx(h.tx_clone())
+      .build(),
+  )?;
   current_peer_id += 1;
 
   let ws_listener_code = 0;
@@ -34,7 +40,10 @@ pub async fn main() -> Result<()> {
               .recv()
               .await
               .unwrap()
-              .build(current_peer_id, h.tx_clone(), 256)
+              .id(current_peer_id)
+              .hub_tx(h.tx_clone())
+              .buffer(32)
+              .build()
               .await,
           )?;
           current_peer_id += 1;

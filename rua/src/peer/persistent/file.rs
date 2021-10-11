@@ -8,29 +8,48 @@ use crate::model::{Peer, PeerEvent, Result};
 
 pub struct FilePeerBuilder {
   tag: String,
-  id: i32,
-  filename: String,
-  buffer: usize,
+  id: Option<i32>,
+  filename: Option<String>,
+  buffer: Option<usize>,
 }
 
 impl FilePeerBuilder {
-  pub fn new(id: i32, filename: String, buffer: usize) -> Self {
+  pub fn new() -> Self {
     Self {
       tag: String::from("file"),
-      id,
-      filename,
-      buffer,
+      id: None,
+      filename: None,
+      buffer: None,
     }
   }
 
-  pub fn with_tag(&mut self, tag: String) -> &Self {
+  pub fn id(mut self, id: i32) -> Self {
+    self.id = Some(id);
+    self
+  }
+  pub fn filename(mut self, filename: String) -> Self {
+    self.filename = Some(filename);
+    self
+  }
+  pub fn buffer(mut self, buffer: usize) -> Self {
+    self.buffer = Some(buffer);
+    self
+  }
+
+  pub fn tag(mut self, tag: String) -> Self {
     self.tag = tag;
     self
   }
 
   pub async fn build(self) -> Result<Box<dyn Peer>> {
     Ok(Box::new(
-      FilePeer::new(self.id, self.tag, self.filename, self.buffer).await?,
+      FilePeer::new(
+        self.id.unwrap(),
+        self.tag,
+        self.filename.unwrap(),
+        self.buffer.unwrap(),
+      )
+      .await?,
     ))
   }
 }
