@@ -20,6 +20,8 @@ pub trait PeerBuilder {
   fn buffer(self, buffer: usize) -> Self;
   fn hub_tx(self, hub_tx: Sender<HubEvent>) -> Self;
   fn build(self) -> Result<Box<dyn Peer>>;
+  fn get_id(&self) -> Option<u32>;
+  fn get_tag(&self) -> &str;
 }
 
 #[derive(Clone, Debug)]
