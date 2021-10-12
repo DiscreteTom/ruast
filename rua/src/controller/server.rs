@@ -53,7 +53,7 @@ impl ServerManager {
     self.hub.add_peer(peer)
   }
 
-  pub async fn remove_peer(&self, id: i32) -> Result<()> {
+  pub async fn remove_peer(&self, id: u32) -> Result<()> {
     self.hub.remove_peer(id).await
   }
 

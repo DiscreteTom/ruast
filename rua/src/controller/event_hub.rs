@@ -8,7 +8,7 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use crate::model::{Error, HubEvent, MultiResult, Peer, PeerEvent, PeerMsg, Result};
 
 pub struct EventHub {
-  peers: RefCell<HashMap<i32, Box<dyn Peer>>>,
+  peers: RefCell<HashMap<u32, Box<dyn Peer>>>,
   tx: Sender<HubEvent>,
   rx: Receiver<HubEvent>,
 }
@@ -41,7 +41,7 @@ impl EventHub {
     }
   }
 
-  pub async fn remove_peer(&self, id: i32) -> Result<()> {
+  pub async fn remove_peer(&self, id: u32) -> Result<()> {
     match self.peers.borrow_mut().remove(&id) {
       Some(p) => {
         p.tx().send(PeerEvent::Stop).await.ok();
@@ -59,7 +59,7 @@ impl EventHub {
       .expect("Failed to stop EventHub");
   }
 
-  pub async fn write_to(&self, id: i32, data: Bytes) -> Result<()> {
+  pub async fn write_to(&self, id: u32, data: Bytes) -> Result<()> {
     match self.peers.borrow_mut().get_mut(&id) {
       Some(peer) => Ok(peer.tx().send(PeerEvent::Write(data)).await?),
       None => Err(Box::new(Error::PeerNotExist(id))),

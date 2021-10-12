@@ -5,18 +5,18 @@ use tokio::sync::mpsc::Sender;
 use crate::controller::EventHub;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-pub type MultiResult<T> = HashMap<i32, Result<T>>;
+pub type MultiResult<T> = HashMap<u32, Result<T>>;
 
 pub trait Peer {
   fn tx(&self) -> &Sender<PeerEvent>;
-  fn id(&self) -> i32;
+  fn id(&self) -> u32;
   fn set_tag(&mut self, tag: String);
   fn tag(&self) -> &str;
 }
 
 #[derive(Clone, Debug)]
 pub struct PeerMsg {
-  pub peer_id: i32,
+  pub peer_id: u32,
   pub data: Bytes,
 }
 
@@ -24,7 +24,7 @@ pub struct PeerMsg {
 pub enum HubEvent {
   Custom(u32),
   PeerMsg(PeerMsg),
-  RemovePeer(i32),
+  RemovePeer(u32),
   Stop,
 }
 
@@ -41,8 +41,8 @@ pub trait Plugin {
 
 #[derive(Debug)]
 pub enum Error {
-  PeerNotExist(i32),
-  PeerAlreadyExist(i32),
+  PeerNotExist(u32),
+  PeerAlreadyExist(u32),
 }
 
 impl fmt::Display for Error {

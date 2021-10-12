@@ -8,7 +8,7 @@ use crate::model::{Peer, PeerEvent, Result};
 
 pub struct FilePeerBuilder {
   tag: String,
-  id: Option<i32>,
+  id: Option<u32>,
   filename: Option<String>,
   buffer: Option<usize>,
 }
@@ -23,7 +23,7 @@ impl FilePeerBuilder {
     }
   }
 
-  pub fn id(mut self, id: i32) -> Self {
+  pub fn id(mut self, id: u32) -> Self {
     self.id = Some(id);
     self
   }
@@ -57,12 +57,12 @@ impl FilePeerBuilder {
 #[derive(BasicPeer)]
 pub struct FilePeer {
   tag: String,
-  id: i32,
+  id: u32,
   tx: Sender<PeerEvent>,
 }
 
 impl FilePeer {
-  async fn new(id: i32, tag: String, filename: String, buffer: usize) -> Result<Self> {
+  async fn new(id: u32, tag: String, filename: String, buffer: usize) -> Result<Self> {
     let (tx, mut rx) = mpsc::channel(buffer);
 
     let mut file = tokio::fs::OpenOptions::new()

@@ -12,7 +12,7 @@ use tokio_tungstenite::tungstenite::Message;
 pub struct WebsocketPeerBuilder {
   tag: String,
   ws: Option<TcpStream>,
-  id: Option<i32>,
+  id: Option<u32>,
   hub_tx: Option<Sender<HubEvent>>,
   buffer: Option<usize>,
 }
@@ -32,7 +32,7 @@ impl WebsocketPeerBuilder {
     self.ws = Some(ws);
     self
   }
-  pub fn id(mut self, id: i32) -> Self {
+  pub fn id(mut self, id: u32) -> Self {
     self.id = Some(id);
     self
   }
@@ -66,14 +66,14 @@ impl WebsocketPeerBuilder {
 
 #[derive(BasicPeer)]
 pub struct WebsocketPeer {
-  id: i32,
+  id: u32,
   tag: String,
   tx: Sender<PeerEvent>,
 }
 
 impl WebsocketPeer {
   async fn new(
-    id: i32,
+    id: u32,
     hub_tx: Sender<HubEvent>,
     ws: TcpStream,
     buffer: usize,

@@ -11,7 +11,7 @@ pub fn peer_derive(input: TokenStream) -> TokenStream {
 
   let gen = quote! {
     impl Peer for #name {
-      fn id(&self) -> i32 {
+      fn id(&self) -> u32 {
         self.id
       }
       fn set_tag(&mut self, tag: String) {

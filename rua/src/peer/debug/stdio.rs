@@ -7,7 +7,7 @@ use crate::model::{HubEvent, Peer, PeerEvent, PeerMsg};
 
 pub struct StdioPeerBuilder {
   tag: String,
-  id: Option<i32>,
+  id: Option<u32>,
   hub_tx: Option<Sender<HubEvent>>,
   disable_input: bool,
   buffer: Option<usize>,
@@ -24,7 +24,7 @@ impl StdioPeerBuilder {
     }
   }
 
-  pub fn id(mut self, id: i32) -> Self {
+  pub fn id(mut self, id: u32) -> Self {
     self.id = Some(id);
     self
   }
@@ -63,13 +63,13 @@ impl StdioPeerBuilder {
 #[derive(BasicPeer)]
 pub struct StdioPeer {
   tag: String,
-  id: i32,
+  id: u32,
   tx: Sender<PeerEvent>,
 }
 
 impl StdioPeer {
   fn new(
-    id: i32,
+    id: u32,
     tag: String,
     hub_tx: Sender<HubEvent>,
     buffer: usize,
