@@ -3,7 +3,7 @@ use rua_macro::BasicPeer;
 use std::io::{self, Write};
 use tokio::sync::mpsc::{self, Sender};
 
-use crate::model::{HubEvent, Peer, PeerEvent, PeerMsg};
+use crate::model::{HubEvent, Peer, PeerBuilder, PeerEvent, PeerMsg, Result};
 
 pub struct StdioPeerBuilder {
   tag: String,
@@ -24,39 +24,41 @@ impl StdioPeerBuilder {
     }
   }
 
-  pub fn id(mut self, id: u32) -> Self {
-    self.id = Some(id);
-    self
-  }
-
-  pub fn hub_tx(mut self, tx: Sender<HubEvent>) -> Self {
-    self.hub_tx = Some(tx);
-    self
-  }
-
-  pub fn tag(mut self, tag: String) -> Self {
-    self.tag = tag;
-    self
-  }
-
-  pub fn buffer(mut self, buffer: usize) -> Self {
-    self.buffer = Some(buffer);
-    self
-  }
-
   pub fn disable_input(mut self, disable: bool) -> Self {
     self.disable_input = disable;
     self
   }
+}
 
-  pub fn build(self) -> Box<dyn Peer> {
-    Box::new(StdioPeer::new(
+impl PeerBuilder for StdioPeerBuilder {
+  fn id(mut self, id: u32) -> Self {
+    self.id = Some(id);
+    self
+  }
+
+  fn hub_tx(mut self, tx: Sender<HubEvent>) -> Self {
+    self.hub_tx = Some(tx);
+    self
+  }
+
+  fn tag(mut self, tag: String) -> Self {
+    self.tag = tag;
+    self
+  }
+
+  fn buffer(mut self, buffer: usize) -> Self {
+    self.buffer = Some(buffer);
+    self
+  }
+
+  fn build(self) -> Result<Box<dyn Peer>> {
+    Ok(Box::new(StdioPeer::new(
       self.id.expect("id is required to build StdioPeer"),
       self.tag,
       self.hub_tx.expect("hub_tx is required to build StdioPeer"),
       self.buffer.expect("buffer is required to build StdioPeer"),
       self.disable_input,
-    ))
+    )))
   }
 }
 

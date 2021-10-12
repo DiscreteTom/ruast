@@ -1,6 +1,6 @@
 use rua::{
   controller::EventHub,
-  model::{HubEvent, Result},
+  model::{HubEvent, PeerBuilder, Result},
   peer::StdioPeerBuilder,
 };
 
@@ -13,7 +13,7 @@ pub async fn main() -> Result<()> {
       .id(0)
       .buffer(32)
       .hub_tx(h.tx_clone())
-      .build(),
+      .build()?,
   )?;
 
   loop {

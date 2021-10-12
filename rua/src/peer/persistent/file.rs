@@ -4,7 +4,7 @@ use tokio::{
   sync::mpsc::{self, Sender},
 };
 
-use crate::model::{Peer, PeerEvent, Result};
+use crate::model::{Peer, PeerBuilder, PeerEvent, Result};
 
 pub struct FilePeerBuilder {
   tag: String,
@@ -23,34 +23,41 @@ impl FilePeerBuilder {
     }
   }
 
-  pub fn id(mut self, id: u32) -> Self {
-    self.id = Some(id);
-    self
-  }
   pub fn filename(mut self, filename: String) -> Self {
     self.filename = Some(filename);
     self
   }
-  pub fn buffer(mut self, buffer: usize) -> Self {
+}
+
+impl PeerBuilder for FilePeerBuilder {
+  fn id(mut self, id: u32) -> Self {
+    self.id = Some(id);
+    self
+  }
+
+  fn buffer(mut self, buffer: usize) -> Self {
     self.buffer = Some(buffer);
     self
   }
 
-  pub fn tag(mut self, tag: String) -> Self {
+  fn tag(mut self, tag: String) -> Self {
     self.tag = tag;
     self
   }
 
-  pub async fn build(self) -> Result<Box<dyn Peer>> {
-    Ok(Box::new(
-      FilePeer::new(
-        self.id.unwrap(),
-        self.tag,
-        self.filename.unwrap(),
-        self.buffer.unwrap(),
-      )
-      .await?,
-    ))
+  fn build(self) -> Result<Box<dyn Peer>> {
+    Ok(Box::new(FilePeer::new(
+      self.id.expect("id is required to build FilePeer"),
+      self.tag,
+      self
+        .filename
+        .expect("filename is required to build FilePeer"),
+      self.buffer.expect("buffer is required to build FilePeer"),
+    )?))
+  }
+
+  fn hub_tx(self, _: Sender<crate::model::HubEvent>) -> Self {
+    self
   }
 }
 
@@ -62,18 +69,22 @@ pub struct FilePeer {
 }
 
 impl FilePeer {
-  async fn new(id: u32, tag: String, filename: String, buffer: usize) -> Result<Self> {
+  fn new(id: u32, tag: String, filename: String, buffer: usize) -> Result<Self> {
     let (tx, mut rx) = mpsc::channel(buffer);
-
-    let mut file = tokio::fs::OpenOptions::new()
-      .create(true)
-      .write(true)
-      .append(true)
-      .open(filename)
-      .await?;
 
     // writer thread
     tokio::spawn(async move {
+      let mut file = tokio::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .append(true)
+        .open(&filename)
+        .await
+        .expect(concat!(
+          "open or create file failed: ",
+          stringify!(filename)
+        ));
+
       loop {
         match rx.recv().await.unwrap() {
           PeerEvent::Write(data) => {

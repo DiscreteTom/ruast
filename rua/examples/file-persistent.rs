@@ -1,6 +1,6 @@
 use rua::{
   controller::EventHub,
-  model::{HubEvent, Result},
+  model::{HubEvent, PeerBuilder, Result},
   peer::{FilePeerBuilder, StdioPeerBuilder},
 };
 
@@ -13,15 +13,14 @@ pub async fn main() -> Result<()> {
       .id(0)
       .buffer(32)
       .hub_tx(h.tx_clone())
-      .build(),
+      .build()?,
   )?;
   h.add_peer(
     FilePeerBuilder::new()
       .id(1)
       .filename("log.txt".to_string())
       .buffer(32)
-      .build()
-      .await?,
+      .build()?,
   )?;
 
   loop {
