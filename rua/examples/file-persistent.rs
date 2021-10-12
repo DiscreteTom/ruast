@@ -17,8 +17,8 @@ pub async fn main() -> Result<()> {
   )?;
   h.add_peer(
     FilePeerBuilder::new()
-      .id(1)
       .filename("log.txt".to_string())
+      .id(1)
       .buffer(32)
       .build()?,
   )?;
