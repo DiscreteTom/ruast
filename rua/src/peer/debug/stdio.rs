@@ -28,34 +28,42 @@ impl StdioPeerBuilder {
     self.disable_input = disable;
     self
   }
+
+  pub fn boxed(self) -> Box<dyn PeerBuilder> {
+    Box::new(self)
+  }
 }
 
 impl PeerBuilder for StdioPeerBuilder {
-  fn id(mut self, id: u32) -> Box<dyn PeerBuilder> {
+  fn id(&mut self, id: u32) -> &mut dyn PeerBuilder {
     self.id = Some(id);
-    Box::new(self)
+    self
   }
 
-  fn hub_tx(mut self, tx: Sender<HubEvent>) -> Box<dyn PeerBuilder> {
+  fn hub_tx(&mut self, tx: Sender<HubEvent>) -> &mut dyn PeerBuilder {
     self.hub_tx = Some(tx);
-    Box::new(self)
+    self
   }
 
-  fn tag(mut self, tag: String) -> Box<dyn PeerBuilder> {
+  fn tag(&mut self, tag: String) -> &mut dyn PeerBuilder {
     self.tag = tag;
-    Box::new(self)
+    self
   }
 
-  fn buffer(mut self, buffer: usize) -> Box<dyn PeerBuilder> {
+  fn buffer(&mut self, buffer: usize) -> &mut dyn PeerBuilder {
     self.buffer = Some(buffer);
-    Box::new(self)
+    self
   }
 
-  fn build(self) -> Result<Box<dyn Peer>> {
+  fn build(&mut self) -> Result<Box<dyn Peer>> {
     Ok(Box::new(StdioPeer::new(
       self.id.expect("id is required to build StdioPeer"),
-      self.tag,
-      self.hub_tx.expect("hub_tx is required to build StdioPeer"),
+      self.tag.clone(),
+      self
+        .hub_tx
+        .as_ref()
+        .expect("hub_tx is required to build StdioPeer")
+        .clone(),
       self.buffer.expect("buffer is required to build StdioPeer"),
       self.disable_input,
     )))

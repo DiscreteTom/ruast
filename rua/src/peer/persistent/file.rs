@@ -27,37 +27,43 @@ impl FilePeerBuilder {
     self.filename = Some(filename);
     self
   }
+
+  pub fn boxed(self) -> Box<dyn PeerBuilder> {
+    Box::new(self)
+  }
 }
 
 impl PeerBuilder for FilePeerBuilder {
-  fn id(mut self, id: u32) -> Box<dyn PeerBuilder> {
+  fn id(&mut self, id: u32) -> &mut dyn PeerBuilder {
     self.id = Some(id);
-    Box::new(self)
+    self
   }
 
-  fn buffer(mut self, buffer: usize) -> Box<dyn PeerBuilder> {
+  fn buffer(&mut self, buffer: usize) -> &mut dyn PeerBuilder {
     self.buffer = Some(buffer);
-    Box::new(self)
+    self
   }
 
-  fn tag(mut self, tag: String) -> Box<dyn PeerBuilder> {
+  fn tag(&mut self, tag: String) -> &mut dyn PeerBuilder {
     self.tag = tag;
-    Box::new(self)
+    self
   }
 
-  fn build(self) -> Result<Box<dyn Peer>> {
+  fn hub_tx(&mut self, _: Sender<crate::model::HubEvent>) -> &mut dyn PeerBuilder {
+    self
+  }
+
+  fn build(&mut self) -> Result<Box<dyn Peer>> {
     Ok(Box::new(FilePeer::new(
       self.id.expect("id is required to build FilePeer"),
-      self.tag,
+      self.tag.clone(),
       self
         .filename
-        .expect("filename is required to build FilePeer"),
+        .as_ref()
+        .expect("filename is required to build FilePeer")
+        .clone(),
       self.buffer.expect("buffer is required to build FilePeer"),
     )?))
-  }
-
-  fn hub_tx(self, _: Sender<crate::model::HubEvent>) -> Box<dyn PeerBuilder> {
-    Box::new(self)
   }
 
   fn get_id(&self) -> Option<u32> {
