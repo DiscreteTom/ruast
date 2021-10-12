@@ -51,7 +51,7 @@ pub trait Plugin {
 }
 
 pub trait PeerIdAllocator {
-  fn allocate(&mut self, peer: &Box<dyn Peer>) -> u32;
+  fn allocate(&mut self, peer: &Box<dyn PeerBuilder>) -> u32;
 }
 
 #[derive(Debug)]

@@ -1,4 +1,4 @@
-use crate::model::PeerIdAllocator;
+use crate::model::{PeerBuilder, PeerIdAllocator};
 
 pub struct SimpleIdGenerator {
   current: u32,
@@ -34,7 +34,7 @@ impl SimplePeerIdAllocator {
 }
 
 impl PeerIdAllocator for SimplePeerIdAllocator {
-  fn allocate(&mut self, _: &Box<dyn crate::model::Peer>) -> u32 {
+  fn allocate(&mut self, _: &Box<dyn PeerBuilder>) -> u32 {
     self.inner.next()
   }
 }
