@@ -14,6 +14,14 @@ pub trait Peer {
   fn tag(&self) -> &str;
 }
 
+pub trait PeerBuilder {
+  fn id(self, id: u32) -> Self;
+  fn tag(self, tag: String) -> Self;
+  fn buffer(self, buffer: usize) -> Self;
+  fn hub_tx(self, hub_tx: Sender<HubEvent>) -> Self;
+  fn build(self) -> Result<Box<dyn Peer>>;
+}
+
 #[derive(Clone, Debug)]
 pub struct PeerMsg {
   pub peer_id: u32,
