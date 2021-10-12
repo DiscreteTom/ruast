@@ -1,6 +1,6 @@
 use rua::{
   controller::EventHub,
-  model::{HubEvent, Result},
+  model::{HubEvent, PeerBuilder, Result},
   peer::StdioPeerBuilder,
 };
 use rua_tungstenite::listener::WebsocketListener;
@@ -17,7 +17,7 @@ pub async fn main() -> Result<()> {
       .id(current_peer_id)
       .buffer(32)
       .hub_tx(h.tx_clone())
-      .build(),
+      .build()?,
   )?;
   current_peer_id += 1;
 
