@@ -1,19 +1,22 @@
 use std::collections::HashMap;
 
 use crate::{
-  model::{HubEvent, Peer, Plugin, Result},
+  model::{HubEvent, Peer, PeerIdAllocator, Plugin, Result},
   peer::StdioPeerBuilder,
 };
 
-use super::EventHub;
+use super::{
+  utils::{SimpleIdGenerator, SimplePeerIdAllocator},
+  EventHub,
+};
 
 pub struct ServerManager {
   hub: EventHub,
   handle_ctrl_c: bool,
   use_stdio: bool,
   plugins: HashMap<u32, Box<dyn Plugin>>,
-  plugin_index: u32,
-  peer_index: i32,
+  plugin_id_allocator: SimpleIdGenerator,
+  peer_id_allocator: Box<dyn PeerIdAllocator>,
 }
 
 impl ServerManager {
@@ -23,8 +26,8 @@ impl ServerManager {
       handle_ctrl_c: true,
       use_stdio: false,
       plugins: HashMap::new(),
-      plugin_index: 0,
-      peer_index: 0,
+      plugin_id_allocator: SimpleIdGenerator::new(0),
+      peer_id_allocator: Box::new(SimplePeerIdAllocator::new(0)),
     }
   }
 
@@ -33,20 +36,15 @@ impl ServerManager {
     self
   }
 
-  pub fn register_plugin(&mut self, plugin: Box<dyn Plugin>) -> u32 {
-    self.plugin_index += 1;
+  pub fn peer_id_allocator(&mut self, allocator: Box<dyn PeerIdAllocator>) -> &Self {
+    self.peer_id_allocator = allocator;
+    self
+  }
 
-    loop {
-      if self.plugin_index == 0 {
-        // overflow
-        panic!("too many plugins")
-      } else if self.plugins.contains_key(&self.plugin_index) {
-        self.plugin_index += 1;
-      } else {
-        self.plugins.insert(self.plugin_index, plugin);
-        return self.plugin_index;
-      }
-    }
+  pub fn register_plugin(&mut self, plugin: Box<dyn Plugin>) -> u32 {
+    let id = self.plugin_id_allocator.next();
+    self.plugins.insert(id, plugin);
+    id
   }
 
   pub async fn add_peer(&self, peer: Box<dyn Peer>) -> Result<()> {
