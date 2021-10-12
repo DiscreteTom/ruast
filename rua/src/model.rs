@@ -39,6 +39,10 @@ pub trait Plugin {
   fn handle(&self, hub: &EventHub);
 }
 
+pub trait PeerIdAllocator {
+  fn allocate(&mut self, peer: &Box<dyn Peer>) -> u32;
+}
+
 #[derive(Debug)]
 pub enum Error {
   PeerNotExist(u32),
