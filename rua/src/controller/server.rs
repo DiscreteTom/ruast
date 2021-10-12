@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-  model::{HubEvent, Peer, PeerIdAllocator, Plugin, Result},
+  model::{HubEvent, Peer, PeerBuilder, PeerIdAllocator, Plugin, Result},
   peer::StdioPeerBuilder,
 };
 
@@ -47,8 +47,12 @@ impl ServerManager {
     id
   }
 
-  pub async fn add_peer(&self, peer: Box<dyn Peer>) -> Result<()> {
-    self.hub.add_peer(peer)
+  pub fn add_peer(&mut self, mut peer_builder: Box<dyn PeerBuilder>) -> Result<u32> {
+    peer_builder.hub_tx(self.hub.tx_clone()).buffer(32);
+    let id = self.peer_id_allocator.allocate(&peer_builder);
+    peer_builder.id(id);
+    self.hub.add_peer(peer_builder.build()?)?;
+    Ok(id)
   }
 
   pub async fn remove_peer(&self, id: u32) -> Result<()> {
@@ -64,15 +68,8 @@ impl ServerManager {
     // stdio peer
     if self.use_stdio {
       self
-        .add_peer(
-          StdioPeerBuilder::new()
-            .id(0)
-            .buffer(32)
-            .hub_tx(self.hub.tx_clone())
-            .build(),
-        )
-        .await
-        .unwrap();
+        .add_peer(StdioPeerBuilder::new().boxed())
+        .expect("can not build StdioPeer");
     }
 
     loop {
