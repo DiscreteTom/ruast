@@ -31,24 +31,24 @@ impl StdioPeerBuilder {
 }
 
 impl PeerBuilder for StdioPeerBuilder {
-  fn id(mut self, id: u32) -> Self {
+  fn id(mut self, id: u32) -> Box<dyn PeerBuilder> {
     self.id = Some(id);
-    self
+    Box::new(self)
   }
 
-  fn hub_tx(mut self, tx: Sender<HubEvent>) -> Self {
+  fn hub_tx(mut self, tx: Sender<HubEvent>) -> Box<dyn PeerBuilder> {
     self.hub_tx = Some(tx);
-    self
+    Box::new(self)
   }
 
-  fn tag(mut self, tag: String) -> Self {
+  fn tag(mut self, tag: String) -> Box<dyn PeerBuilder> {
     self.tag = tag;
-    self
+    Box::new(self)
   }
 
-  fn buffer(mut self, buffer: usize) -> Self {
+  fn buffer(mut self, buffer: usize) -> Box<dyn PeerBuilder> {
     self.buffer = Some(buffer);
-    self
+    Box::new(self)
   }
 
   fn build(self) -> Result<Box<dyn Peer>> {

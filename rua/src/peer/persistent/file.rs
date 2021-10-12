@@ -30,19 +30,19 @@ impl FilePeerBuilder {
 }
 
 impl PeerBuilder for FilePeerBuilder {
-  fn id(mut self, id: u32) -> Self {
+  fn id(mut self, id: u32) -> Box<dyn PeerBuilder> {
     self.id = Some(id);
-    self
+    Box::new(self)
   }
 
-  fn buffer(mut self, buffer: usize) -> Self {
+  fn buffer(mut self, buffer: usize) -> Box<dyn PeerBuilder> {
     self.buffer = Some(buffer);
-    self
+    Box::new(self)
   }
 
-  fn tag(mut self, tag: String) -> Self {
+  fn tag(mut self, tag: String) -> Box<dyn PeerBuilder> {
     self.tag = tag;
-    self
+    Box::new(self)
   }
 
   fn build(self) -> Result<Box<dyn Peer>> {
@@ -56,8 +56,8 @@ impl PeerBuilder for FilePeerBuilder {
     )?))
   }
 
-  fn hub_tx(self, _: Sender<crate::model::HubEvent>) -> Self {
-    self
+  fn hub_tx(self, _: Sender<crate::model::HubEvent>) -> Box<dyn PeerBuilder> {
+    Box::new(self)
   }
 
   fn get_id(&self) -> Option<u32> {
