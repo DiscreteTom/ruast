@@ -15,11 +15,12 @@ pub trait Peer {
 }
 
 pub trait PeerBuilder {
-  fn id(self, id: u32) -> Self;
-  fn tag(self, tag: String) -> Self;
-  fn buffer(self, buffer: usize) -> Self;
-  fn hub_tx(self, hub_tx: Sender<HubEvent>) -> Self;
+  fn id(self, id: u32) -> Box<dyn PeerBuilder>;
+  fn tag(self, tag: String) -> Box<dyn PeerBuilder>;
+  fn buffer(self, buffer: usize) -> Box<dyn PeerBuilder>;
+  fn hub_tx(self, hub_tx: Sender<HubEvent>) -> Box<dyn PeerBuilder>;
   fn build(self) -> Result<Box<dyn Peer>>;
+
   fn get_id(&self) -> Option<u32>;
   fn get_tag(&self) -> &str;
 }
