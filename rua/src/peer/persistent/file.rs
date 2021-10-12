@@ -59,6 +59,14 @@ impl PeerBuilder for FilePeerBuilder {
   fn hub_tx(self, _: Sender<crate::model::HubEvent>) -> Self {
     self
   }
+
+  fn get_id(&self) -> Option<u32> {
+    self.id
+  }
+
+  fn get_tag(&self) -> &str {
+    &self.tag
+  }
 }
 
 #[derive(BasicPeer)]

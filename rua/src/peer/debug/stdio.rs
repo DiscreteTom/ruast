@@ -60,6 +60,14 @@ impl PeerBuilder for StdioPeerBuilder {
       self.disable_input,
     )))
   }
+
+  fn get_id(&self) -> Option<u32> {
+    self.id
+  }
+
+  fn get_tag(&self) -> &str {
+    &self.tag
+  }
 }
 
 #[derive(BasicPeer)]
