@@ -1,14 +1,11 @@
 use bytes::Bytes;
-use std::{
-  cell::RefCell,
-  collections::{hash_map::Entry, HashMap},
-};
+use std::collections::{hash_map::Entry, HashMap};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::model::{Error, HubEvent, MultiResult, Peer, PeerEvent, PeerMsg, Result};
 
 pub struct EventHub {
-  peers: RefCell<HashMap<u32, Box<dyn Peer>>>,
+  peers: HashMap<u32, Box<dyn Peer>>,
   tx: Sender<HubEvent>,
   rx: Receiver<HubEvent>,
 }
@@ -17,7 +14,7 @@ impl EventHub {
   pub fn new(buffer: usize) -> Self {
     let (tx, rx) = mpsc::channel(buffer);
     EventHub {
-      peers: RefCell::new(HashMap::new()),
+      peers: HashMap::new(),
       tx,
       rx,
     }
@@ -31,8 +28,8 @@ impl EventHub {
     self.rx.recv().await.unwrap() // rx.recv will not return error
   }
 
-  pub fn add_peer(&self, peer: Box<dyn Peer>) -> Result<()> {
-    match self.peers.borrow_mut().entry(peer.id()) {
+  pub fn add_peer(&mut self, peer: Box<dyn Peer>) -> Result<()> {
+    match self.peers.entry(peer.id()) {
       Entry::Occupied(_) => Err(Box::new(Error::PeerAlreadyExist(peer.id()))),
       Entry::Vacant(e) => {
         e.insert(peer);
@@ -41,8 +38,8 @@ impl EventHub {
     }
   }
 
-  pub async fn remove_peer(&self, id: u32) -> Result<()> {
-    match self.peers.borrow_mut().remove(&id) {
+  pub async fn remove_peer(&mut self, id: u32) -> Result<()> {
+    match self.peers.remove(&id) {
       Some(p) => {
         p.tx().send(PeerEvent::Stop).await.ok();
         Ok(())
@@ -60,7 +57,7 @@ impl EventHub {
   }
 
   pub async fn write_to(&self, id: u32, data: Bytes) -> Result<()> {
-    match self.peers.borrow_mut().get_mut(&id) {
+    match self.peers.get(&id) {
       Some(peer) => Ok(peer.tx().send(PeerEvent::Write(data)).await?),
       None => Err(Box::new(Error::PeerNotExist(id))),
     }
@@ -74,8 +71,8 @@ impl EventHub {
   where
     F: Fn(&Box<dyn Peer>) -> bool,
   {
-    let mut result = HashMap::with_capacity(self.peers.borrow().len());
-    for (id, p) in self.peers.borrow_mut().iter_mut() {
+    let mut result = HashMap::with_capacity(self.peers.len());
+    for (id, p) in self.peers.iter() {
       let t = if selector(p) {
         match p.tx().send(PeerEvent::Write(data.clone())).await {
           Ok(_) => Ok(true),
