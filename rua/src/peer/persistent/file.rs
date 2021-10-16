@@ -1,15 +1,20 @@
-use tokio::{
-  io::AsyncWriteExt,
-  sync::mpsc::{self, Sender},
+use crate::{
+  impl_peer, impl_peer_builder,
+  model::HubEvent,
+  model::{Peer, PeerBuilder, Result},
 };
 
-use crate::model::{Peer, PeerBuilder, PeerEvent, Result};
+use async_trait::async_trait;
+use bytes::Bytes;
+use tokio::fs::File;
+use tokio::{io::AsyncWriteExt, sync::mpsc::Sender};
 
 pub struct FilePeerBuilder {
   tag: String,
   id: Option<u32>,
   filename: Option<String>,
   buffer: Option<usize>,
+  hub_tx: Option<Sender<HubEvent>>,
 }
 
 impl FilePeerBuilder {
@@ -19,6 +24,7 @@ impl FilePeerBuilder {
       id: None,
       filename: None,
       buffer: None,
+      hub_tx: None,
     }
   }
 
@@ -32,82 +38,47 @@ impl FilePeerBuilder {
   }
 }
 
+#[async_trait]
 impl PeerBuilder for FilePeerBuilder {
-  fn id(&mut self, id: u32) -> &mut dyn PeerBuilder {
-    self.id = Some(id);
-    self
-  }
+  impl_peer_builder!(all);
 
-  fn buffer(&mut self, buffer: usize) -> &mut dyn PeerBuilder {
-    self.buffer = Some(buffer);
-    self
-  }
+  async fn build(&mut self) -> Result<Box<dyn Peer>> {
+    let id = self.id.ok_or("id is required to build FilePeer")?;
+    let filename = self
+      .filename
+      .take()
+      .ok_or("filename is required to build FilePeer")?;
+    let buffer = self.buffer.ok_or("buffer is required to build FilePeer");
 
-  fn tag(&mut self, tag: String) -> &mut dyn PeerBuilder {
-    self.tag = tag;
-    self
-  }
+    let file = tokio::fs::OpenOptions::new()
+      .create(true)
+      .write(true)
+      .append(true)
+      .open(&filename)
+      .await?;
 
-  fn hub_tx(&mut self, _: Sender<crate::model::HubEvent>) -> &mut dyn PeerBuilder {
-    self
-  }
-
-  fn build(&mut self) -> Result<Box<dyn Peer>> {
-    Ok(Box::new(FilePeer::new(
-      self.id.expect("id is required to build FilePeer"),
-      self.tag.clone(),
-      self
-        .filename
-        .as_ref()
-        .expect("filename is required to build FilePeer")
-        .clone(),
-      self.buffer.expect("buffer is required to build FilePeer"),
-    )?))
-  }
-
-  fn get_id(&self) -> Option<u32> {
-    self.id
-  }
-
-  fn get_tag(&self) -> &str {
-    &self.tag
+    Ok(Box::new(FilePeer {
+      tag: self.tag,
+      id,
+      file,
+    }))
   }
 }
 
 pub struct FilePeer {
   tag: String,
   id: u32,
-  tx: Sender<PeerEvent>,
+  file: File,
 }
 
-impl FilePeer {
-  fn new(id: u32, tag: String, filename: String, buffer: usize) -> Result<Self> {
-    let (tx, mut rx) = mpsc::channel(buffer);
+#[async_trait]
+impl Peer for FilePeer {
+  impl_peer!(all);
 
-    // writer thread
-    tokio::spawn(async move {
-      let mut file = tokio::fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .append(true)
-        .open(&filename)
-        .await
-        .expect(concat!(
-          "open or create file failed: ",
-          stringify!(filename)
-        ));
-
-      loop {
-        match rx.recv().await.unwrap() {
-          PeerEvent::Write(data) => {
-            file.write_all(&data).await.unwrap();
-            file.sync_data().await.unwrap();
-          }
-          PeerEvent::Stop => break,
-        }
-      }
-    });
-
-    Ok(Self { id, tag, tx })
+  async fn write(&self, data: Bytes) -> Result<()> {
+    self.file.write_all(&data).await?;
+    Ok(self.file.sync_data().await?)
   }
+
+  fn stop(&mut self) {}
 }
