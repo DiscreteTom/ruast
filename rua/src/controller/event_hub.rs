@@ -2,7 +2,7 @@ use bytes::Bytes;
 use std::collections::{hash_map::Entry, HashMap};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
-use crate::model::{Error, HubEvent, MultiResult, Peer, PeerEvent, PeerMsg, Result};
+use crate::model::{Error, HubEvent, MultiResult, Peer, PeerMsg, Result};
 
 pub struct EventHub {
   peers: HashMap<u32, Box<dyn Peer>>,
@@ -34,10 +34,10 @@ impl EventHub {
     }
   }
 
-  pub async fn remove_peer(&mut self, id: u32) -> Result<()> {
+  pub fn remove_peer(&mut self, id: u32) -> Result<()> {
     match self.peers.remove(&id) {
-      Some(p) => {
-        p.tx().send(PeerEvent::Stop).await.ok();
+      Some(mut p) => {
+        p.stop();
         Ok(())
       }
       None => Err(Box::new(Error::PeerNotExist(id))),
@@ -54,7 +54,7 @@ impl EventHub {
 
   pub async fn write_to(&self, id: u32, data: Bytes) -> Result<()> {
     match self.peers.get(&id) {
-      Some(peer) => Ok(peer.tx().send(PeerEvent::Write(data)).await?),
+      Some(peer) => Ok(peer.write(data).await?),
       None => Err(Box::new(Error::PeerNotExist(id))),
     }
   }
@@ -67,17 +67,25 @@ impl EventHub {
   where
     F: Fn(&Box<dyn Peer>) -> bool,
   {
+    let mut futures = HashMap::with_capacity(self.peers.len());
     let mut result = HashMap::with_capacity(self.peers.len());
+
+    // broadcast
     for (id, p) in self.peers.iter() {
-      let t = if selector(p) {
-        match p.tx().send(PeerEvent::Write(data.clone())).await {
-          Ok(_) => Ok(true),
-          Err(e) => Err(Box::new(e) as Box<dyn std::error::Error>),
-        }
+      if selector(p) {
+        futures.insert(*id, p.write(data.clone()));
       } else {
-        Ok(false)
+        result.insert(*id, Ok(false));
       };
-      result.insert(*id, t);
+    }
+
+    // gather result
+    for (id, f) in futures {
+      let t = match f.await {
+        Ok(_) => Ok(true),
+        Err(e) => Err(e),
+      };
+      result.insert(id, t);
     }
     result
   }
