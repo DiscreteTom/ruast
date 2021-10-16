@@ -6,7 +6,7 @@ use crate::model::{Error, HubEvent, MultiResult, Peer, PeerEvent, PeerMsg, Resul
 
 pub struct EventHub {
   peers: HashMap<u32, Box<dyn Peer>>,
-  tx: Sender<HubEvent>,
+  pub tx: Sender<HubEvent>,
   rx: Receiver<HubEvent>,
 }
 
@@ -18,10 +18,6 @@ impl EventHub {
       tx,
       rx,
     }
-  }
-
-  pub fn tx(&self) -> &Sender<HubEvent> {
-    &self.tx
   }
 
   pub async fn recv(&mut self) -> HubEvent {

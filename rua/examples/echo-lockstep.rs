@@ -11,14 +11,14 @@ pub async fn main() -> Result<()> {
   let mut h = EventHub::new(256);
 
   let lockstep_op_code = 0;
-  let mut lockstepper = LockstepController::new(1000, h.tx().clone(), lockstep_op_code);
+  let mut lockstepper = LockstepController::new(1000, h.tx.clone(), lockstep_op_code);
   lockstepper.next_step();
 
   h.add_peer(
     StdioPeerBuilder::new()
       .id(0)
       .buffer(32)
-      .hub_tx(h.tx().clone())
+      .hub_tx(h.tx.clone())
       .build()?,
   )?;
 

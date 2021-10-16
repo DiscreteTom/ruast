@@ -12,7 +12,7 @@ pub async fn main() -> Result<()> {
     StdioPeerBuilder::new()
       .id(0)
       .buffer(32)
-      .hub_tx(h.tx().clone())
+      .hub_tx(h.tx.clone())
       .build()?,
   )?;
   h.add_peer(
