@@ -13,7 +13,6 @@ pub struct FilePeerBuilder {
   tag: String,
   id: Option<u32>,
   filename: Option<String>,
-  buffer: Option<usize>,
   hub_tx: Option<Sender<HubEvent>>,
 }
 
@@ -23,7 +22,6 @@ impl FilePeerBuilder {
       tag: String::from("file"),
       id: None,
       filename: None,
-      buffer: None,
       hub_tx: None,
     }
   }
@@ -48,7 +46,6 @@ impl PeerBuilder for FilePeerBuilder {
       .filename
       .take()
       .ok_or("filename is required to build FilePeer")?;
-    let buffer = self.buffer.ok_or("buffer is required to build FilePeer");
 
     let file = tokio::fs::OpenOptions::new()
       .create(true)
@@ -58,7 +55,7 @@ impl PeerBuilder for FilePeerBuilder {
       .await?;
 
     Ok(Box::new(FilePeer {
-      tag: self.tag,
+      tag: self.tag.clone(),
       id,
       file,
     }))
@@ -75,7 +72,7 @@ pub struct FilePeer {
 impl Peer for FilePeer {
   impl_peer!(all);
 
-  async fn write(&self, data: Bytes) -> Result<()> {
+  async fn write(&mut self, data: Bytes) -> Result<()> {
     self.file.write_all(&data).await?;
     Ok(self.file.sync_data().await?)
   }
