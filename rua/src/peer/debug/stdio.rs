@@ -61,9 +61,14 @@ impl PeerBuilder for StdioPeerBuilder {
           match stdin.read_line(&mut line) {
             Ok(0) => break, // EOF
             Ok(_) => {
-              if *running.lock().await {
-                // remove tail '\n'
+              // remove trailing newline
+              if line.ends_with('\n') {
                 line.pop();
+                if line.ends_with('\r') {
+                  line.pop();
+                }
+              }
+              if *running.lock().await {
                 // send
                 hub_tx
                   .send(HubEvent::PeerMsg(PeerMsg {
