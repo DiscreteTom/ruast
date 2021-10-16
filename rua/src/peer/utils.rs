@@ -3,8 +3,11 @@
 /// # Examples
 ///
 /// ```
+/// use async_trait::async_trait;
+///
 /// pub struct MyPeer{};
 ///
+/// #[async_trait]
 /// impl Peer for MyPeer {
 ///   // implement id(), set_tag(), tag()
 ///   impl_peer!(all);
@@ -14,7 +17,6 @@
 ///
 ///   // there are still some methods you need to implement manually.
 ///   async fn write(&self, data: Bytes) -> Result<()> { Ok(()) }
-///   async fn start(&self) -> Result<()> { Ok(()) }
 ///   fn stop(&mut self){}
 /// }
 /// ```
@@ -48,8 +50,11 @@ macro_rules! impl_peer {
 /// # Examples
 ///
 /// ```
+/// use async_trait::async_trait;
+///
 /// pub struct MyPeerBuilder{};
 ///
+/// #[async_trait]
 /// impl PeerBuilder for MyPeerBuilder {
 ///   // implement id(), hub_tx(), tag(), buffer(), get_id(), get_tag()
 ///   impl_peer_builder!(all);
@@ -58,7 +63,7 @@ macro_rules! impl_peer {
 ///   // impl_peer_builder!(id, tag);
 ///
 ///   // there are still some methods you need to implement manually.
-///   fn build(&mut self) -> Result<Box<dyn Peer>> { Ok(...) }
+///   async fn build(&mut self) -> Result<Box<dyn Peer>> { Ok(...) }
 /// }
 /// ```
 #[macro_export]
