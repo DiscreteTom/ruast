@@ -10,10 +10,11 @@ pub type MultiResult<T> = HashMap<u32, Result<T>>;
 
 #[async_trait]
 pub trait Peer {
-  async fn write(&self, data: Bytes);
+  async fn write(&self, data: Bytes) -> Result<()>;
   fn id(&self) -> u32;
   fn set_tag(&mut self, tag: String);
   fn tag(&self) -> &str;
+  fn stop(&mut self);
 }
 
 pub trait PeerBuilder {
@@ -38,12 +39,6 @@ pub enum HubEvent {
   Custom(u32),
   PeerMsg(PeerMsg),
   RemovePeer(u32),
-  Stop,
-}
-
-#[derive(Debug)]
-pub enum PeerEvent {
-  Write(Bytes),
   Stop,
 }
 
