@@ -16,7 +16,6 @@ pub struct StdioPeerBuilder {
   id: Option<u32>,
   hub_tx: Option<Sender<HubEvent>>,
   disable_input: bool,
-  buffer: Option<usize>,
 }
 
 impl StdioPeerBuilder {
@@ -26,7 +25,6 @@ impl StdioPeerBuilder {
       id: None,
       hub_tx: None,
       disable_input: false,
-      buffer: None,
     }
   }
 
