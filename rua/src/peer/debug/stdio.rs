@@ -1,9 +1,11 @@
 use bytes::Bytes;
-use rua_macro::BasicPeer;
 use std::io::{self, Write};
 use tokio::sync::mpsc::{self, Sender};
 
-use crate::model::{HubEvent, Peer, PeerBuilder, PeerEvent, PeerMsg, Result};
+use crate::{
+  model::{HubEvent, Peer, PeerBuilder, PeerMsg, Result},
+  BasicPeer,
+};
 
 pub struct StdioPeerBuilder {
   tag: String,
@@ -78,11 +80,9 @@ impl PeerBuilder for StdioPeerBuilder {
   }
 }
 
-#[derive(BasicPeer)]
 pub struct StdioPeer {
   tag: String,
   id: u32,
-  tx: Sender<PeerEvent>,
 }
 
 impl StdioPeer {
@@ -138,4 +138,8 @@ impl StdioPeer {
 
     Self { tag, id, tx }
   }
+}
+
+impl Peer for StdioPeer {
+  BasicPeer!();
 }

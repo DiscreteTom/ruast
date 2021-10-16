@@ -1,7 +1,6 @@
 use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
 use rua::model::{HubEvent, Peer, PeerEvent, PeerMsg};
-use rua_macro::BasicPeer;
 use tokio::{
   net::TcpStream,
   sync::mpsc::{self, Sender},
@@ -64,7 +63,6 @@ impl WebsocketPeerBuilder {
   }
 }
 
-#[derive(BasicPeer)]
 pub struct WebsocketPeer {
   id: u32,
   tag: String,
