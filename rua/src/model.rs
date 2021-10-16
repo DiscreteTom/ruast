@@ -10,10 +10,11 @@ pub type MultiResult<T> = HashMap<u32, Result<T>>;
 
 #[async_trait]
 pub trait Peer {
-  async fn write(&self, data: Bytes) -> Result<()>;
   fn id(&self) -> u32;
   fn set_tag(&mut self, tag: String);
   fn tag(&self) -> &str;
+  async fn start(&self) -> Result<()>;
+  async fn write(&self, data: Bytes) -> Result<()>;
   fn stop(&mut self);
 }
 
