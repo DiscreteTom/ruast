@@ -48,7 +48,7 @@ impl ServerManager {
   }
 
   pub fn add_peer(&mut self, mut peer_builder: Box<dyn PeerBuilder>) -> Result<u32> {
-    peer_builder.hub_tx(self.hub.tx_clone()).buffer(32);
+    peer_builder.hub_tx(self.hub.tx().clone()).buffer(32);
     let id = self.peer_id_allocator.allocate(&peer_builder);
     peer_builder.id(id);
     self.hub.add_peer(peer_builder.build()?)?;

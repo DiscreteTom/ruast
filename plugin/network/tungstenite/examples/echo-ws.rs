@@ -16,14 +16,14 @@ pub async fn main() -> Result<()> {
     StdioPeerBuilder::new()
       .id(current_peer_id)
       .buffer(32)
-      .hub_tx(h.tx_clone())
+      .hub_tx(h.tx().clone())
       .build()?,
   )?;
   current_peer_id += 1;
 
   let ws_listener_code = 0;
   let (ws_listener, mut ws_peer_rx) =
-    WebsocketListener::new(WS_LISTENER_ADDR, ws_listener_code, h.tx_clone(), 256);
+    WebsocketListener::new(WS_LISTENER_ADDR, ws_listener_code, h.tx().clone(), 256);
   tokio::spawn(async move { ws_listener.start().await });
 
   println!("WebSocket listener is running at ws://{}", WS_LISTENER_ADDR);
@@ -41,7 +41,7 @@ pub async fn main() -> Result<()> {
               .await
               .unwrap()
               .id(current_peer_id)
-              .hub_tx(h.tx_clone())
+              .hub_tx(h.tx().clone())
               .buffer(32)
               .build()
               .await,

@@ -20,8 +20,8 @@ impl EventHub {
     }
   }
 
-  pub fn tx_clone(&self) -> Sender<HubEvent> {
-    self.tx.clone()
+  pub fn tx(&self) -> &Sender<HubEvent> {
+    &self.tx
   }
 
   pub async fn recv(&mut self) -> HubEvent {
