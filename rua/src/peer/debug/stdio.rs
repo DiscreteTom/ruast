@@ -45,14 +45,12 @@ impl PeerBuilder for StdioPeerBuilder {
   impl_peer_builder!(all);
 
   async fn build(&mut self) -> Result<Box<dyn Peer>> {
-    let id = self.id.expect("id is required to build StdioPeer");
-    let tag = self.tag.clone();
+    let id = self.id.ok_or("id is required to build StdioPeer")?;
     let hub_tx = self
       .hub_tx
-      .as_ref()
-      .expect("hub_tx is required to build StdioPeer")
-      .clone();
-    let buffer = self.buffer.expect("buffer is required to build StdioPeer");
+      .take()
+      .ok_or("hub_tx is required to build StdioPeer")?;
+    let buffer = self.buffer.ok_or("buffer is required to build StdioPeer")?;
     let running = Arc::new(Mutex::new(true));
 
     // start reader thread
@@ -88,7 +86,7 @@ impl PeerBuilder for StdioPeerBuilder {
 
     Ok(Box::new(StdioPeer {
       id,
-      tag,
+      tag: self.tag,
       stdout: io::stdout(),
       running: running.clone(),
     }))
