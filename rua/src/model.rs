@@ -13,17 +13,17 @@ pub trait Peer {
   fn id(&self) -> u32;
   fn set_tag(&mut self, tag: String);
   fn tag(&self) -> &str;
-  async fn start(&self) -> Result<()>;
   async fn write(&self, data: Bytes) -> Result<()>;
   fn stop(&mut self);
 }
 
+#[async_trait]
 pub trait PeerBuilder {
   fn id(&mut self, id: u32) -> &mut dyn PeerBuilder;
   fn tag(&mut self, tag: String) -> &mut dyn PeerBuilder;
   fn buffer(&mut self, buffer: usize) -> &mut dyn PeerBuilder;
   fn hub_tx(&mut self, hub_tx: Sender<HubEvent>) -> &mut dyn PeerBuilder;
-  fn build(&mut self) -> Result<Box<dyn Peer>>;
+  async fn build(&mut self) -> Result<Box<dyn Peer>>;
 
   fn get_id(&self) -> Option<u32>;
   fn get_tag(&self) -> &str;
