@@ -11,15 +11,15 @@ pub async fn main() -> Result<()> {
   h.add_peer(
     StdioPeerBuilder::new()
       .id(0)
-      .buffer(32)
       .hub_tx(h.tx.clone())
-      .build()?,
+      .build()
+      .await?,
   )?;
 
   loop {
     match h.recv().await {
       HubEvent::PeerMsg(msg) => h.echo(msg).await?,
-      HubEvent::RemovePeer(id) => h.remove_peer(id).await?,
+      HubEvent::RemovePeer(id) => h.remove_peer(id)?,
       _ => break,
     }
   }

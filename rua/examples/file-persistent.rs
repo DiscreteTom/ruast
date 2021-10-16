@@ -11,16 +11,16 @@ pub async fn main() -> Result<()> {
   h.add_peer(
     StdioPeerBuilder::new()
       .id(0)
-      .buffer(32)
       .hub_tx(h.tx.clone())
-      .build()?,
+      .build()
+      .await?,
   )?;
   h.add_peer(
     FilePeerBuilder::new()
       .filename("log.txt".to_string())
       .id(1)
-      .buffer(32)
-      .build()?,
+      .build()
+      .await?,
   )?;
 
   loop {
@@ -28,7 +28,7 @@ pub async fn main() -> Result<()> {
       HubEvent::PeerMsg(msg) => {
         h.broadcast_all(msg.data).await;
       }
-      HubEvent::RemovePeer(id) => h.remove_peer(id).await?,
+      HubEvent::RemovePeer(id) => h.remove_peer(id)?,
       _ => break,
     }
   }
