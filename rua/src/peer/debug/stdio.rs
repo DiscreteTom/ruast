@@ -3,7 +3,7 @@ use std::io::{self, Write};
 use tokio::sync::mpsc::{self, Sender};
 
 use crate::{
-  basic_peer,
+  impl_peer,
   model::{HubEvent, Peer, PeerBuilder, PeerMsg, Result},
 };
 
@@ -141,5 +141,5 @@ impl StdioPeer {
 }
 
 impl Peer for StdioPeer {
-  basic_peer!();
+  impl_peer!();
 }
