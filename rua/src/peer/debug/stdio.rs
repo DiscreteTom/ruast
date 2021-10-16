@@ -1,9 +1,10 @@
+use async_trait::async_trait;
 use bytes::Bytes;
-use std::io::{self, Write};
-use tokio::sync::mpsc::{self, Sender};
+use std::io::{self, Stdout, Write};
+use tokio::sync::mpsc::Sender;
 
 use crate::{
-  impl_peer,
+  impl_peer, impl_peer_builder,
   model::{HubEvent, Peer, PeerBuilder, PeerMsg, Result},
 };
 
@@ -37,25 +38,7 @@ impl StdioPeerBuilder {
 }
 
 impl PeerBuilder for StdioPeerBuilder {
-  fn id(&mut self, id: u32) -> &mut dyn PeerBuilder {
-    self.id = Some(id);
-    self
-  }
-
-  fn hub_tx(&mut self, tx: Sender<HubEvent>) -> &mut dyn PeerBuilder {
-    self.hub_tx = Some(tx);
-    self
-  }
-
-  fn tag(&mut self, tag: String) -> &mut dyn PeerBuilder {
-    self.tag = tag;
-    self
-  }
-
-  fn buffer(&mut self, buffer: usize) -> &mut dyn PeerBuilder {
-    self.buffer = Some(buffer);
-    self
-  }
+  impl_peer_builder!(all);
 
   fn build(&mut self) -> Result<Box<dyn Peer>> {
     Ok(Box::new(StdioPeer::new(
@@ -70,19 +53,12 @@ impl PeerBuilder for StdioPeerBuilder {
       self.disable_input,
     )))
   }
-
-  fn get_id(&self) -> Option<u32> {
-    self.id
-  }
-
-  fn get_tag(&self) -> &str {
-    &self.tag
-  }
 }
 
 pub struct StdioPeer {
   tag: String,
   id: u32,
+  stdout: Stdout,
 }
 
 impl StdioPeer {
@@ -93,9 +69,7 @@ impl StdioPeer {
     buffer: usize,
     disable_input: bool,
   ) -> Self {
-    let (tx, mut rx) = mpsc::channel(buffer);
-
-    // reader thread
+    // start reader thread
     if !disable_input {
       tokio::spawn(async move {
         let stdin = io::stdin();
@@ -122,24 +96,22 @@ impl StdioPeer {
       });
     }
 
-    // writer thread
-    tokio::spawn(async move {
-      let mut stdout = io::stdout();
-      loop {
-        match rx.recv().await.unwrap() {
-          PeerEvent::Write(data) => {
-            println!("{}", String::from_utf8_lossy(&data));
-            stdout.flush().unwrap();
-          }
-          PeerEvent::Stop => break,
-        }
-      }
-    });
-
-    Self { tag, id, tx }
+    Self {
+      tag,
+      id,
+      stdout: io::stdout(),
+    }
   }
 }
 
+#[async_trait]
 impl Peer for StdioPeer {
-  impl_peer!();
+  impl_peer!(all);
+
+  async fn write(&self, data: Bytes) -> Result<()> {
+    println!("{}", String::from_utf8_lossy(&data));
+    Ok(self.stdout.flush()?)
+  }
+
+  fn stop(&mut self) {}
 }
