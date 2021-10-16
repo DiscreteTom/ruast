@@ -52,18 +52,18 @@ impl EventHub {
       .expect("Failed to stop EventHub");
   }
 
-  pub async fn write_to(&self, id: u32, data: Bytes) -> Result<()> {
-    match self.peers.get(&id) {
+  pub async fn write_to(&mut self, id: u32, data: Bytes) -> Result<()> {
+    match self.peers.get_mut(&id) {
       Some(peer) => Ok(peer.write(data).await?),
       None => Err(Box::new(Error::PeerNotExist(id))),
     }
   }
 
-  pub async fn echo(&self, msg: PeerMsg) -> Result<()> {
+  pub async fn echo(&mut self, msg: PeerMsg) -> Result<()> {
     self.write_to(msg.peer_id, msg.data).await
   }
 
-  pub async fn broadcast<F>(&self, data: Bytes, selector: F) -> MultiResult<bool>
+  pub async fn broadcast<F>(&mut self, data: Bytes, selector: F) -> MultiResult<bool>
   where
     F: Fn(&Box<dyn Peer>) -> bool,
   {
@@ -71,7 +71,7 @@ impl EventHub {
     let mut result = HashMap::with_capacity(self.peers.len());
 
     // broadcast
-    for (id, p) in self.peers.iter() {
+    for (id, p) in self.peers.iter_mut() {
       if selector(p) {
         futures.insert(*id, p.write(data.clone()));
       } else {
@@ -90,7 +90,7 @@ impl EventHub {
     result
   }
 
-  pub async fn broadcast_all(&self, data: Bytes) -> MultiResult<bool> {
+  pub async fn broadcast_all(&mut self, data: Bytes) -> MultiResult<bool> {
     self.broadcast(data, |_| true).await
   }
 }
