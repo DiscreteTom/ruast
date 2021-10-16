@@ -55,8 +55,8 @@ impl ServerManager {
     Ok(id)
   }
 
-  pub async fn remove_peer(&mut self, id: u32) -> Result<()> {
-    self.hub.remove_peer(id).await
+  pub fn remove_peer(&mut self, id: u32) -> Result<()> {
+    self.hub.remove_peer(id)
   }
 
   pub async fn start(&mut self) {
@@ -77,7 +77,7 @@ impl ServerManager {
         HubEvent::PeerMsg(msg) => todo!(),
         HubEvent::RemovePeer(id) => {
           // TODO: before remove peer
-          self.remove_peer(id).await.unwrap();
+          self.remove_peer(id).unwrap();
           // TODO: failed to remove peer
           // TODO: after remove peer
         }
