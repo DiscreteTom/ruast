@@ -50,11 +50,11 @@ impl PeerBuilder for StdioPeerBuilder {
       .hub_tx
       .take()
       .ok_or("hub_tx is required to build StdioPeer")?;
-    let buffer = self.buffer.ok_or("buffer is required to build StdioPeer")?;
     let running = Arc::new(Mutex::new(true));
 
     // start reader thread
     if !self.disable_input {
+      let running = running.clone();
       tokio::spawn(async move {
         let stdin = std::io::stdin();
         loop {
@@ -86,7 +86,7 @@ impl PeerBuilder for StdioPeerBuilder {
 
     Ok(Box::new(StdioPeer {
       id,
-      tag: self.tag,
+      tag: self.tag.clone(),
       stdout: io::stdout(),
       running: running.clone(),
     }))
@@ -104,7 +104,7 @@ pub struct StdioPeer {
 impl Peer for StdioPeer {
   impl_peer!(all);
 
-  async fn write(&self, data: Bytes) -> Result<()> {
+  async fn write(&mut self, data: Bytes) -> Result<()> {
     self.stdout.write_all(&data.to_vec()).await?;
     println!("{}", String::from_utf8_lossy(&data));
     Ok(self.stdout.flush().await?)
