@@ -103,8 +103,8 @@ impl Peer for StdioPeer {
   impl_peer!(all);
 
   async fn write(&mut self, data: Bytes) -> Result<()> {
-    self.stdout.write_all(&data.to_vec()).await?;
-    println!("{}", String::from_utf8_lossy(&data));
+    self.stdout.write_all(&data).await?;
+    self.stdout.write_all(b"\n").await?;
     Ok(self.stdout.flush().await?)
   }
 
