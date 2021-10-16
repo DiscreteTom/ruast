@@ -3,8 +3,8 @@ use std::io::{self, Write};
 use tokio::sync::mpsc::{self, Sender};
 
 use crate::{
+  basic_peer,
   model::{HubEvent, Peer, PeerBuilder, PeerMsg, Result},
-  BasicPeer,
 };
 
 pub struct StdioPeerBuilder {
@@ -141,5 +141,5 @@ impl StdioPeer {
 }
 
 impl Peer for StdioPeer {
-  BasicPeer!();
+  basic_peer!();
 }

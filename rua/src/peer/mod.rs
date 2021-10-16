@@ -4,7 +4,7 @@ pub mod persistent;
 pub use persistent::file::FilePeerBuilder;
 
 #[macro_export]
-macro_rules! BasicPeer {
+macro_rules! basic_peer {
   () => {
     fn id(&self) -> u32 {
       self.id
