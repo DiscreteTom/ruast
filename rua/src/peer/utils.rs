@@ -14,6 +14,7 @@
 ///
 ///   // there are still some methods you need to implement manually.
 ///   async fn write(&self, data: Bytes) -> Result<()> { Ok(()) }
+///   async fn start(&self) -> Result<()> { Ok(()) }
 ///   fn stop(&mut self){}
 /// }
 /// ```
