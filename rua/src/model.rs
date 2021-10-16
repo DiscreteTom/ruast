@@ -21,7 +21,6 @@ pub trait Peer {
 pub trait PeerBuilder {
   fn id(&mut self, id: u32) -> &mut dyn PeerBuilder;
   fn tag(&mut self, tag: String) -> &mut dyn PeerBuilder;
-  fn buffer(&mut self, buffer: usize) -> &mut dyn PeerBuilder;
   fn hub_tx(&mut self, hub_tx: Sender<HubEvent>) -> &mut dyn PeerBuilder;
   async fn build(&mut self) -> Result<Box<dyn Peer>>;
 
