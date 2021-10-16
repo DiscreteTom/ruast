@@ -20,9 +20,6 @@ pub fn peer_derive(input: TokenStream) -> TokenStream {
       fn tag(&self) -> &str {
         &self.tag
       }
-      fn tx(&self) -> &Sender<PeerEvent> {
-        &self.tx
-      }
     }
   };
 
