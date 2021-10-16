@@ -13,7 +13,7 @@ pub trait Peer {
   fn id(&self) -> u32;
   fn set_tag(&mut self, tag: String);
   fn tag(&self) -> &str;
-  async fn write(&self, data: Bytes) -> Result<()>;
+  async fn write(&mut self, data: Bytes) -> Result<()>;
   fn stop(&mut self);
 }
 
