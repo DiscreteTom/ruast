@@ -22,7 +22,7 @@ impl EventHub {
     )
   }
 
-  pub fn with_tx(buffer: usize, tx: Sender<HubEvent>) -> Self {
+  pub fn with_tx(tx: Sender<HubEvent>) -> Self {
     EventHub {
       peers: HashMap::new(),
       tx,
