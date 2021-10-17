@@ -16,6 +16,7 @@ pub struct StdioPeerBuilder {
   id: Option<u32>,
   hub_tx: Option<Sender<HubEvent>>,
   disable_input: bool,
+  output_selector: Option<Box<dyn Fn(&Bytes) -> bool + 'static + Send>>,
 }
 
 impl StdioPeerBuilder {
@@ -25,11 +26,20 @@ impl StdioPeerBuilder {
       id: None,
       hub_tx: None,
       disable_input: false,
+      output_selector: Some(Box::new(|_| true)),
     }
   }
 
   pub fn disable_input(mut self, disable: bool) -> Self {
     self.disable_input = disable;
+    self
+  }
+
+  pub fn output_selector<F>(mut self, filter: F) -> Self
+  where
+    F: Fn(&Bytes) -> bool + 'static + Send,
+  {
+    self.output_selector = Some(Box::new(filter));
     self
   }
 
@@ -92,6 +102,7 @@ impl PeerBuilder for StdioPeerBuilder {
       tag: self.tag.take().unwrap(),
       stdout: io::stdout(),
       running: running.clone(),
+      output_selector: self.output_selector.take().unwrap(),
     }))
   }
 }
@@ -101,6 +112,7 @@ pub struct StdioPeer {
   id: u32,
   stdout: Stdout,
   running: Arc<Mutex<bool>>,
+  output_selector: Box<dyn Fn(&Bytes) -> bool + 'static + Send>,
 }
 
 #[async_trait]
@@ -108,9 +120,13 @@ impl Peer for StdioPeer {
   impl_peer!(all);
 
   async fn write(&mut self, data: Bytes) -> Result<()> {
-    self.stdout.write_all(&data).await?;
-    self.stdout.write_all(b"\n").await?;
-    Ok(self.stdout.flush().await?)
+    if (self.output_selector)(&data) {
+      self.stdout.write_all(&data).await?;
+      self.stdout.write_all(b"\n").await?;
+      Ok(self.stdout.flush().await?)
+    } else {
+      Ok(())
+    }
   }
 
   fn stop(&mut self) {

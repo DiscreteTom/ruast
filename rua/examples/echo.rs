@@ -10,6 +10,7 @@ pub async fn main() -> Result<()> {
 
   h.add_peer(
     StdioPeerBuilder::new()
+      .output_selector(|data| !data.starts_with(b"#"))
       .id(0)
       .hub_tx(h.tx.clone())
       .build()
