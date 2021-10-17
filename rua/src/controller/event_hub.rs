@@ -1,25 +1,19 @@
 use bytes::Bytes;
 use std::collections::{hash_map::Entry, HashMap};
-use tokio::sync::mpsc::{self, Receiver, Sender};
 
-use crate::model::{Error, HubEvent, MultiResult, Peer, PeerMsg, Result};
+use crate::model::{Error, MultiResult, Peer, PeerMsg, Result};
 
 /// Use `EventHub::new()` or `EventHub::with_tx()` to create event hub.
 pub struct EventHub {
   peers: HashMap<u32, Box<dyn Peer + Send>>,
-  pub tx: Sender<HubEvent>,
+  // TODO
+  // before/after_add/remove_peer
 }
 
 impl EventHub {
-  pub fn new(buffer: usize) -> (Self, Receiver<HubEvent>) {
-    let (tx, rx) = mpsc::channel(buffer);
-    (Self::with_tx(tx), rx)
-  }
-
-  pub fn with_tx(tx: Sender<HubEvent>) -> Self {
-    EventHub {
+  pub fn new() -> Self {
+    Self {
       peers: HashMap::new(),
-      tx,
     }
   }
 
