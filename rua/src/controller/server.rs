@@ -13,7 +13,7 @@ use super::{
 pub struct ServerManager {
   hub: EventHub,
   handle_ctrl_c: bool,
-  use_stdio: bool,
+  stdio: bool,
   plugins: HashMap<u32, Box<dyn Plugin>>,
   plugin_id_allocator: SimpleIdGenerator,
   peer_id_allocator: Box<dyn PeerIdAllocator>,
@@ -24,15 +24,15 @@ impl ServerManager {
     Self {
       hub: EventHub::new(event_buffer),
       handle_ctrl_c: true,
-      use_stdio: false,
+      stdio: false,
       plugins: HashMap::new(),
       plugin_id_allocator: SimpleIdGenerator::new(0),
       peer_id_allocator: Box::new(SimplePeerIdAllocator::new(0)),
     }
   }
 
-  pub fn enable_stdio(&mut self, enable: bool) -> &Self {
-    self.use_stdio = enable;
+  pub fn stdio(&mut self, enable: bool) -> &Self {
+    self.stdio = enable;
     self
   }
 
@@ -66,7 +66,7 @@ impl ServerManager {
     }
 
     // stdio peer
-    if self.use_stdio {
+    if self.stdio {
       self
         .add_peer(StdioPeerBuilder::new().boxed())
         .await
