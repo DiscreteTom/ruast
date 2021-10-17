@@ -6,7 +6,7 @@ use crate::model::{Error, HubEvent, MultiResult, Peer, PeerMsg, Result};
 
 /// Use `EventHub::new()` or `EventHub::with_tx()` to create event hub.
 pub struct EventHub {
-  peers: HashMap<u32, Box<dyn Peer>>,
+  peers: HashMap<u32, Box<dyn Peer + Send>>,
   pub tx: Sender<HubEvent>,
 }
 
@@ -29,7 +29,7 @@ impl EventHub {
     }
   }
 
-  pub fn add_peer(&mut self, peer: Box<dyn Peer>) -> Result<()> {
+  pub fn add_peer(&mut self, peer: Box<dyn Peer + Send>) -> Result<()> {
     match self.peers.entry(peer.id()) {
       Entry::Occupied(_) => Err(Box::new(Error::PeerAlreadyExist(peer.id()))),
       Entry::Vacant(e) => {
@@ -62,7 +62,7 @@ impl EventHub {
 
   pub async fn broadcast<F>(&mut self, data: Bytes, selector: F) -> MultiResult<bool>
   where
-    F: Fn(&Box<dyn Peer>) -> bool,
+    F: Fn(&Box<dyn Peer + Send>) -> bool,
   {
     let mut futures = HashMap::with_capacity(self.peers.len());
     let mut result = HashMap::with_capacity(self.peers.len());

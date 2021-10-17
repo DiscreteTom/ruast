@@ -45,22 +45,22 @@ impl ServerManager {
     }
   }
 
-  pub fn stdio(&mut self, enable: bool) -> &Self {
+  pub fn stdio(&mut self, enable: bool) -> &mut Self {
     self.stdio = enable;
     self
   }
 
-  pub fn peer_id_allocator(&mut self, allocator: Box<dyn PeerIdAllocator>) -> &Self {
+  pub fn peer_id_allocator(&mut self, allocator: Box<dyn PeerIdAllocator>) -> &mut Self {
     self.peer_id_allocator = allocator;
     self
   }
 
-  pub fn handle_ctrl_c(&mut self, enable: bool) -> &Self {
+  pub fn handle_ctrl_c(&mut self, enable: bool) -> &mut Self {
     self.handle_ctrl_c = enable;
     self
   }
 
-  pub fn on_peer_msg(&mut self, f: impl Fn(PeerMsg, Arc<Mutex<EventHub>>) + 'static) -> &Self {
+  pub fn on_peer_msg(&mut self, f: impl Fn(PeerMsg, Arc<Mutex<EventHub>>) + 'static) -> &mut Self {
     self.peer_msg_handler = Box::new(f);
     self
   }
