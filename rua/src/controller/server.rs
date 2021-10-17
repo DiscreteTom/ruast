@@ -17,6 +17,7 @@ pub struct ServerManager {
   plugins: HashMap<u32, Box<dyn Plugin>>,
   plugin_id_allocator: SimpleIdGenerator,
   peer_id_allocator: Box<dyn PeerIdAllocator>,
+  peer_msg_handler: Box<dyn Fn(PeerMsg, &EventHub) + 'static>,
 }
 
 impl ServerManager {
@@ -28,6 +29,7 @@ impl ServerManager {
       plugins: HashMap::new(),
       plugin_id_allocator: SimpleIdGenerator::new(0),
       peer_id_allocator: Box::new(SimplePeerIdAllocator::new(0)),
+      peer_msg_handler: Box::new(|_, _| {}),
     }
   }
 
@@ -43,6 +45,11 @@ impl ServerManager {
 
   pub fn handle_ctrl_c(&mut self, enable: bool) -> &Self {
     self.handle_ctrl_c = enable;
+    self
+  }
+
+  pub fn on_peer_msg(&mut self, f: impl Fn(PeerMsg, &EventHub) + 'static) -> &Self {
+    self.peer_msg_handler = Box::new(f);
     self
   }
 
@@ -83,7 +90,7 @@ impl ServerManager {
 
     loop {
       match self.hub.recv().await {
-        HubEvent::PeerMsg(msg) => todo!(),
+        HubEvent::PeerMsg(msg) => (self.peer_msg_handler)(msg, &self.hub),
         HubEvent::RemovePeer(id) => {
           // TODO: before remove peer
           self.remove_peer(id).unwrap();
