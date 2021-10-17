@@ -15,9 +15,9 @@ pub async fn main() -> Result<()> {
   h.add_peer(
     StdioPeerBuilder::new()
       .id(current_peer_id)
-      .buffer(32)
       .hub_tx(h.tx.clone())
-      .build()?,
+      .build()
+      .await?,
   )?;
   current_peer_id += 1;
 
@@ -42,14 +42,13 @@ pub async fn main() -> Result<()> {
               .unwrap()
               .id(current_peer_id)
               .hub_tx(h.tx.clone())
-              .buffer(32)
               .build()
-              .await,
+              .await?,
           )?;
           current_peer_id += 1;
         }
       }
-      HubEvent::RemovePeer(id) => h.remove_peer(id).await?,
+      HubEvent::RemovePeer(id) => h.remove_peer(id)?,
       _ => break,
     }
   }
