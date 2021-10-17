@@ -3,7 +3,7 @@ use bytes::Bytes;
 use std::{collections::HashMap, fmt};
 use tokio::sync::mpsc::Sender;
 
-use crate::controller::EventHub;
+use crate::controller::{server::ServerManager, EventHub};
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub type MultiResult<T> = HashMap<u32, Result<T>>;
@@ -42,8 +42,8 @@ pub enum HubEvent {
 }
 
 pub trait Plugin {
-  fn start(&self, code: u32);
-  fn handle(&self, hub: &EventHub);
+  fn start(&self, code: u32, hub_tx: Sender<HubEvent>);
+  fn handle(&self, hub: &mut ServerManager);
 }
 
 pub trait PeerIdAllocator {
