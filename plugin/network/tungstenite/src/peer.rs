@@ -43,7 +43,7 @@ impl WebsocketPeerBuilder {
 impl PeerBuilder for WebsocketPeerBuilder {
   impl_peer_builder!(all);
 
-  async fn build(&mut self) -> Result<Box<dyn Peer>> {
+  async fn build(&mut self) -> Result<Box<dyn Peer + Send>> {
     let id = self.id.ok_or("id is required to build WebsocketPeer")?;
     let hub_tx = self
       .hub_tx
