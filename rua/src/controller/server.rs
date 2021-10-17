@@ -20,9 +20,9 @@ pub struct ServerManager {
 }
 
 impl ServerManager {
-  pub fn new() -> Self {
+  pub fn new(event_buffer: usize) -> Self {
     Self {
-      hub: EventHub::new(256),
+      hub: EventHub::new(event_buffer),
       handle_ctrl_c: true,
       use_stdio: false,
       plugins: HashMap::new(),
