@@ -41,6 +41,11 @@ impl ServerManager {
     self
   }
 
+  pub fn handle_ctrl_c(&mut self, enable: bool) -> &Self {
+    self.handle_ctrl_c = enable;
+    self
+  }
+
   pub fn register_plugin(&mut self, plugin: Box<dyn Plugin>) -> u32 {
     let id = self.plugin_id_allocator.next();
     self.plugins.insert(id, plugin);
@@ -48,10 +53,14 @@ impl ServerManager {
   }
 
   pub async fn add_peer(&mut self, mut peer_builder: Box<dyn PeerBuilder>) -> Result<u32> {
-    peer_builder.hub_tx(self.hub.tx.clone());
     let id = self.peer_id_allocator.allocate(&peer_builder);
-    peer_builder.id(id);
-    self.hub.add_peer(peer_builder.build().await?)?;
+    self.hub.add_peer(
+      peer_builder
+        .id(id)
+        .hub_tx(self.hub.tx.clone())
+        .build()
+        .await?,
+    )?;
     Ok(id)
   }
 
