@@ -42,7 +42,7 @@ pub enum HubEvent {
 }
 
 pub trait Plugin {
-  fn start(&self);
+  fn start(&self, code: u32);
   fn handle(&self, hub: &EventHub);
 }
 
