@@ -1,29 +1,26 @@
-use rua::{
-  controller::EventHub,
-  model::{HubEvent, PeerBuilder, Result},
-  peer::StdioPeerBuilder,
-};
+use rua::{controller::server::ServerManager, model::Result};
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-  let (mut h, mut rx) = EventHub::new(256);
+  // create a server
+  let mut s = ServerManager::new(256);
 
-  h.add_peer(
-    StdioPeerBuilder::new()
-      .output_selector(|data| !data.starts_with(b"#"))
-      .id(0)
-      .hub_tx(h.tx.clone())
-      .build()
-      .await?,
-  )?;
+  // enable stdio
+  s.stdio(true);
 
-  loop {
-    match rx.recv().await.unwrap() {
-      HubEvent::PeerMsg(msg) => h.echo(msg).await?,
-      HubEvent::RemovePeer(id) => h.remove_peer(id)?,
-      _ => break,
-    }
-  }
+  // a customizable way to enable stdio
+  // s.add_peer(
+  //   StdioPeerBuilder::new()
+  //     .output_selector(|data| !data.starts_with(b"#"))
+  //     .boxed(),
+  // )
+  // .await?;
+
+  s.on_peer_msg(|msg, hub| {
+    tokio::spawn(async move { hub.lock().await.echo(msg).await.unwrap() });
+  });
+
+  s.start().await;
 
   Ok(())
 }
