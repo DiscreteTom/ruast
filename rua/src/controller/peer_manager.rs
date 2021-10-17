@@ -3,14 +3,13 @@ use std::collections::{hash_map::Entry, HashMap};
 
 use crate::model::{Error, MultiResult, Peer, PeerMsg, Result};
 
-/// Use `EventHub::new()` or `EventHub::with_tx()` to create event hub.
-pub struct EventHub {
+pub struct PeerManager {
   peers: HashMap<u32, Box<dyn Peer + Send>>,
   // TODO
   // before/after_add/remove_peer
 }
 
-impl EventHub {
+impl PeerManager {
   pub fn new() -> Self {
     Self {
       peers: HashMap::new(),

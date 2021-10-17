@@ -1,5 +1,5 @@
 use rua::{
-  controller::EventHub,
+  controller::PeerManager,
   model::{PeerBuilder, Result, ServerEvent},
   peer::StdioPeerBuilder,
 };
@@ -12,7 +12,7 @@ const WS_LISTENER_ADDR: &str = "127.0.0.1:8080";
 pub async fn main() -> Result<()> {
   let mut current_peer_id = 0;
 
-  let mut h = EventHub::new();
+  let mut h = PeerManager::new();
   let (tx, mut rx) = mpsc::channel(256);
 
   h.add_peer(

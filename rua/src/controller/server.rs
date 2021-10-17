@@ -12,30 +12,30 @@ use crate::{
 
 use super::{
   utils::{SimpleIdGenerator, SimplePeerIdAllocator},
-  EventHub,
+  PeerManager,
 };
 
 pub struct ServerManager {
-  hub: Arc<Mutex<EventHub>>,
-  server_tx: Sender<ServerEvent>,
-  hub_rx: Receiver<ServerEvent>,
+  pm: Arc<Mutex<PeerManager>>,
+  tx: Sender<ServerEvent>,
+  rx: Receiver<ServerEvent>,
   handle_ctrl_c: bool,
   stdio: bool,
   plugins: HashMap<u32, Box<dyn Plugin>>,
   plugin_id_allocator: SimpleIdGenerator,
   peer_id_allocator: Box<dyn PeerIdAllocator>,
-  peer_msg_handler: Box<dyn Fn(PeerMsg, Arc<Mutex<EventHub>>) + 'static>,
+  peer_msg_handler: Box<dyn Fn(PeerMsg, Arc<Mutex<PeerManager>>) + 'static>,
 }
 
 impl ServerManager {
   pub fn new(event_buffer: usize) -> Self {
-    let (server_tx, hub_rx) = mpsc::channel(event_buffer);
-    let hub = Arc::new(Mutex::new(EventHub::new()));
+    let (server_tx, server_rx) = mpsc::channel(event_buffer);
+    let pm = Arc::new(Mutex::new(PeerManager::new()));
 
     Self {
-      hub,
-      server_tx,
-      hub_rx,
+      pm,
+      tx: server_tx,
+      rx: server_rx,
       handle_ctrl_c: true,
       stdio: false,
       plugins: HashMap::new(),
@@ -60,7 +60,10 @@ impl ServerManager {
     self
   }
 
-  pub fn on_peer_msg(&mut self, f: impl Fn(PeerMsg, Arc<Mutex<EventHub>>) + 'static) -> &mut Self {
+  pub fn on_peer_msg(
+    &mut self,
+    f: impl Fn(PeerMsg, Arc<Mutex<PeerManager>>) + 'static,
+  ) -> &mut Self {
     self.peer_msg_handler = Box::new(f);
     self
   }
@@ -72,10 +75,10 @@ impl ServerManager {
 
   pub async fn add_peer(&mut self, mut peer_builder: Box<dyn PeerBuilder>) -> Result<u32> {
     let id = self.peer_id_allocator.allocate(&peer_builder);
-    self.hub.lock().await.add_peer(
+    self.pm.lock().await.add_peer(
       peer_builder
         .id(id)
-        .server_tx(self.server_tx.clone())
+        .server_tx(self.tx.clone())
         .build()
         .await?,
     )?;
@@ -83,13 +86,13 @@ impl ServerManager {
   }
 
   pub async fn remove_peer(&mut self, id: u32) -> Result<()> {
-    self.hub.lock().await.remove_peer(id)
+    self.pm.lock().await.remove_peer(id)
   }
 
   pub async fn start(&mut self) {
     // start plugins
     for (code, plugin) in &self.plugins {
-      plugin.start(*code, self.server_tx.clone());
+      plugin.start(*code, self.tx.clone());
     }
 
     // stdio peer
@@ -101,8 +104,8 @@ impl ServerManager {
     }
 
     loop {
-      match self.hub_rx.recv().await.unwrap() {
-        ServerEvent::PeerMsg(msg) => (self.peer_msg_handler)(msg, self.hub.clone()),
+      match self.rx.recv().await.unwrap() {
+        ServerEvent::PeerMsg(msg) => (self.peer_msg_handler)(msg, self.pm.clone()),
         ServerEvent::RemovePeer(id) => {
           // TODO: before remove peer
           self.remove_peer(id).await.unwrap();

@@ -43,7 +43,7 @@ pub enum ServerEvent {
 
 pub trait Plugin {
   fn start(&self, code: u32, server_tx: Sender<ServerEvent>);
-  fn handle(&self, hub: &mut ServerManager);
+  fn handle(&self, s: &mut ServerManager);
 }
 
 pub trait PeerIdAllocator {

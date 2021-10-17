@@ -14,5 +14,5 @@ impl Plugin for CtrlcHandler {
     });
   }
 
-  fn handle(&self, hub: &mut ServerManager) {}
+  fn handle(&self, s: &mut ServerManager) {}
 }

@@ -1,6 +1,6 @@
 use bytes::{BufMut, BytesMut};
 use rua::{
-  controller::EventHub,
+  controller::PeerManager,
   model::{PeerBuilder, Result, ServerEvent},
   peer::{FilePeerBuilder, StdioPeerBuilder},
 };
@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-  let mut h = EventHub::new();
+  let mut h = PeerManager::new();
   let (tx, mut rx) = mpsc::channel(256);
 
   h.add_peer(

@@ -16,8 +16,8 @@ pub async fn main() -> Result<()> {
   // )
   // .await?;
 
-  s.on_peer_msg(|msg, hub| {
-    tokio::spawn(async move { hub.lock().await.echo(msg).await.unwrap() });
+  s.on_peer_msg(|msg, pm| {
+    tokio::spawn(async move { pm.lock().await.echo(msg).await.unwrap() });
   });
 
   s.start().await;

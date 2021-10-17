@@ -67,7 +67,7 @@ impl PeerBuilder for WebsocketPeerBuilder {
               Some(msg) => {
                 let msg = msg.expect("read websocket error");
                 if msg.is_close() {
-                  // remove self from EventHub
+                  // remove self from PeerManager
                   server_tx.send(ServerEvent::RemovePeer(id)).await.ok();
                   break;
                 } else {
