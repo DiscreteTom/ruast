@@ -39,7 +39,6 @@ pub enum HubEvent {
   Custom(u32),
   PeerMsg(PeerMsg),
   RemovePeer(u32),
-  Stop,
 }
 
 pub trait Plugin {

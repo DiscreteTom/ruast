@@ -89,7 +89,6 @@ impl ServerManager {
             todo!()
           }
         }
-        HubEvent::Stop => break,
       }
     }
   }

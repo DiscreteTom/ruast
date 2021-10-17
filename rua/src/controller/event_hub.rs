@@ -44,14 +44,6 @@ impl EventHub {
     }
   }
 
-  pub async fn stop(&self) {
-    self
-      .tx
-      .send(HubEvent::Stop)
-      .await
-      .expect("Failed to stop EventHub");
-  }
-
   pub async fn write_to(&mut self, id: u32, data: Bytes) -> Result<()> {
     match self.peers.get_mut(&id) {
       Some(peer) => Ok(peer.write(data).await?),
