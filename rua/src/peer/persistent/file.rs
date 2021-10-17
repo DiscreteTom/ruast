@@ -10,7 +10,7 @@ use tokio::fs::File;
 use tokio::{io::AsyncWriteExt, sync::mpsc::Sender};
 
 pub struct FilePeerBuilder {
-  tag: String,
+  tag: Option<String>,
   id: Option<u32>,
   filename: Option<String>,
   hub_tx: Option<Sender<HubEvent>>,
@@ -19,7 +19,7 @@ pub struct FilePeerBuilder {
 impl FilePeerBuilder {
   pub fn new() -> Self {
     Self {
-      tag: String::from("file"),
+      tag: Some(String::from("file")),
       id: None,
       filename: None,
       hub_tx: None,
@@ -55,7 +55,7 @@ impl PeerBuilder for FilePeerBuilder {
       .await?;
 
     Ok(Box::new(FilePeer {
-      tag: self.tag.clone(),
+      tag: self.tag.take().unwrap(),
       id,
       file,
     }))

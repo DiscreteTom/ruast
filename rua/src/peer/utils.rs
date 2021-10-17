@@ -84,7 +84,7 @@ macro_rules! impl_peer_builder {
 
   (tag) => {
     fn tag(&mut self, tag: String) -> &mut dyn PeerBuilder {
-      self.tag = tag;
+      self.tag = Some(tag);
       self
     }
   };
@@ -95,7 +95,7 @@ macro_rules! impl_peer_builder {
   };
   (get_tag) => {
     fn get_tag(&self) -> &str {
-      &self.tag
+      &self.tag.as_ref().unwrap()
     }
   };
   (all) => {

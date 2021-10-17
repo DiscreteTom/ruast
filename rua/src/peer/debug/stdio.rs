@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub struct StdioPeerBuilder {
-  tag: String,
+  tag: Option<String>,
   id: Option<u32>,
   hub_tx: Option<Sender<HubEvent>>,
   disable_input: bool,
@@ -21,7 +21,7 @@ pub struct StdioPeerBuilder {
 impl StdioPeerBuilder {
   pub fn new() -> Self {
     Self {
-      tag: String::from("stdio"),
+      tag: Some(String::from("stdio")),
       id: None,
       hub_tx: None,
       disable_input: false,
@@ -89,7 +89,7 @@ impl PeerBuilder for StdioPeerBuilder {
 
     Ok(Box::new(StdioPeer {
       id,
-      tag: self.tag.clone(),
+      tag: self.tag.take().unwrap(),
       stdout: io::stdout(),
       running: running.clone(),
     }))
