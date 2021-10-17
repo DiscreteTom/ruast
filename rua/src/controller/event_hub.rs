@@ -21,7 +21,7 @@ impl EventHub {
   }
 
   pub async fn recv(&mut self) -> HubEvent {
-    self.rx.recv().await.unwrap() // rx.recv will not return error
+    self.rx.recv().await.unwrap()
   }
 
   pub fn add_peer(&mut self, peer: Box<dyn Peer>) -> Result<()> {
