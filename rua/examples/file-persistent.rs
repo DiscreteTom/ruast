@@ -1,3 +1,4 @@
+use bytes::{BufMut, BytesMut};
 use rua::{
   controller::EventHub,
   model::{HubEvent, PeerBuilder, Result},
@@ -18,6 +19,16 @@ pub async fn main() -> Result<()> {
   h.add_peer(
     FilePeerBuilder::new()
       .filename("log.txt".to_string())
+      .separator("\n")
+      .transformer(|data| {
+        let prepend = b">> (";
+        let append = b");";
+        let mut buf = BytesMut::with_capacity(prepend.len() + data.len() + append.len());
+        buf.put(&prepend[..]);
+        buf.put(data);
+        buf.put(&append[..]);
+        buf.freeze()
+      })
       .id(1)
       .build()
       .await?,
