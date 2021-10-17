@@ -4,15 +4,17 @@ use rua::{
   model::{HubEvent, PeerBuilder, Result},
   peer::{FilePeerBuilder, StdioPeerBuilder},
 };
+use tokio::sync::mpsc;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-  let (mut h, mut rx) = EventHub::new(256);
+  let mut h = EventHub::new();
+  let (tx, mut rx) = mpsc::channel(256);
 
   h.add_peer(
     StdioPeerBuilder::new()
       .id(0)
-      .hub_tx(h.tx.clone())
+      .hub_tx(tx.clone())
       .build()
       .await?,
   )?;

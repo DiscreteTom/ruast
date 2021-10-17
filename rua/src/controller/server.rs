@@ -30,7 +30,7 @@ pub struct ServerManager {
 impl ServerManager {
   pub fn new(event_buffer: usize) -> Self {
     let (hub_tx, hub_rx) = mpsc::channel(event_buffer);
-    let hub = Arc::new(Mutex::new(EventHub::with_tx(hub_tx.clone())));
+    let hub = Arc::new(Mutex::new(EventHub::new()));
 
     Self {
       hub,
