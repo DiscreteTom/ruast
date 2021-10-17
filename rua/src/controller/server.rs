@@ -1,6 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
-use tokio::sync::{mpsc::Sender, Mutex};
+use tokio::sync::{
+  mpsc::{self, Receiver, Sender},
+  Mutex,
+};
 
 use crate::{
   model::{HubEvent, Peer, PeerBuilder, PeerIdAllocator, PeerMsg, Plugin, Result},
@@ -15,6 +18,7 @@ use super::{
 pub struct ServerManager {
   hub: Arc<Mutex<EventHub>>,
   hub_tx: Sender<HubEvent>,
+  hub_rx: Receiver<HubEvent>,
   handle_ctrl_c: bool,
   stdio: bool,
   plugins: HashMap<u32, Box<dyn Plugin>>,
@@ -25,12 +29,13 @@ pub struct ServerManager {
 
 impl ServerManager {
   pub fn new(event_buffer: usize) -> Self {
-    let hub = EventHub::new(event_buffer);
-    let hub_tx = hub.tx.clone();
+    let (hub_tx, hub_rx) = mpsc::channel(event_buffer);
+    let hub = Arc::new(Mutex::new(EventHub::with_tx(hub_tx.clone())));
 
     Self {
-      hub: Arc::new(Mutex::new(hub)),
+      hub,
       hub_tx,
+      hub_rx,
       handle_ctrl_c: true,
       stdio: false,
       plugins: HashMap::new(),
@@ -96,7 +101,7 @@ impl ServerManager {
     }
 
     loop {
-      match self.hub.lock().await.recv().await {
+      match self.hub_rx.recv().await.unwrap() {
         HubEvent::PeerMsg(msg) => (self.peer_msg_handler)(msg, self.hub.clone()),
         HubEvent::RemovePeer(id) => {
           // TODO: before remove peer
