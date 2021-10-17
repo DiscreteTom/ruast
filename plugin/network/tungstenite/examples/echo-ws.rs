@@ -11,7 +11,7 @@ const WS_LISTENER_ADDR: &str = "127.0.0.1:8080";
 pub async fn main() -> Result<()> {
   let mut current_peer_id = 0;
 
-  let mut h = EventHub::new(256);
+  let (mut h, mut rx) = EventHub::new(256);
   h.add_peer(
     StdioPeerBuilder::new()
       .id(current_peer_id)
@@ -29,7 +29,7 @@ pub async fn main() -> Result<()> {
   println!("WebSocket listener is running at ws://{}", WS_LISTENER_ADDR);
 
   loop {
-    match h.recv().await {
+    match rx.recv().await.unwrap() {
       HubEvent::PeerMsg(msg) => {
         h.broadcast_all(msg.data).await;
       }

@@ -8,7 +8,7 @@ use rua::{
 #[tokio::main]
 pub async fn main() -> Result<()> {
   let mut peer_msgs = Vec::new();
-  let mut h = EventHub::new(256);
+  let (mut h, mut rx) = EventHub::new(256);
 
   let lockstep_op_code = 0;
   let mut lockstepper = LockstepController::new(1000, h.tx.clone(), lockstep_op_code);
@@ -23,7 +23,7 @@ pub async fn main() -> Result<()> {
   )?;
 
   loop {
-    match h.recv().await {
+    match rx.recv().await.unwrap() {
       HubEvent::PeerMsg(msg) => peer_msgs.push(msg.data),
       HubEvent::Custom(code) => {
         if code == lockstep_op_code {

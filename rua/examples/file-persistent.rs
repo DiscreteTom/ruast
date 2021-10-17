@@ -7,7 +7,7 @@ use rua::{
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-  let mut h = EventHub::new(256);
+  let (mut h, mut rx) = EventHub::new(256);
 
   h.add_peer(
     StdioPeerBuilder::new()
@@ -35,7 +35,7 @@ pub async fn main() -> Result<()> {
   )?;
 
   loop {
-    match h.recv().await {
+    match rx.recv().await.unwrap() {
       HubEvent::PeerMsg(msg) => {
         h.broadcast_all(msg.data).await;
       }
