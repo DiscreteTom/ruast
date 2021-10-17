@@ -4,24 +4,29 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::model::{Error, HubEvent, MultiResult, Peer, PeerMsg, Result};
 
+/// Use `EventHub::new()` or `EventHub::with_tx()` to create event hub.
 pub struct EventHub {
   peers: HashMap<u32, Box<dyn Peer>>,
   pub tx: Sender<HubEvent>,
-  rx: Receiver<HubEvent>,
 }
 
 impl EventHub {
-  pub fn new(buffer: usize) -> Self {
+  pub fn new(buffer: usize) -> (Self, Receiver<HubEvent>) {
     let (tx, rx) = mpsc::channel(buffer);
+    (
+      EventHub {
+        peers: HashMap::new(),
+        tx,
+      },
+      rx,
+    )
+  }
+
+  pub fn with_tx(buffer: usize, tx: Sender<HubEvent>) -> Self {
     EventHub {
       peers: HashMap::new(),
       tx,
-      rx,
     }
-  }
-
-  pub async fn recv(&mut self) -> HubEvent {
-    self.rx.recv().await.unwrap()
   }
 
   pub fn add_peer(&mut self, peer: Box<dyn Peer>) -> Result<()> {
