@@ -5,7 +5,10 @@ use rua::{
   impl_peer, impl_peer_builder,
   model::{HubEvent, Peer, PeerBuilder, PeerMsg, Result},
 };
-use tokio::{net::TcpStream, sync::mpsc::Sender};
+use tokio::{
+  net::TcpStream,
+  sync::mpsc::{self, Sender},
+};
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
 #[derive(Debug)]
@@ -53,28 +56,36 @@ impl PeerBuilder for WebsocketPeerBuilder {
 
     let ws_stream = tokio_tungstenite::accept_async(ws).await?;
     let (writer, mut reader) = ws_stream.split();
+    let (stop_tx, mut stop_rx) = mpsc::channel(1);
 
     // reader thread
     tokio::spawn(async move {
       loop {
-        match reader.next().await {
-          Some(msg) => {
-            let msg = msg.expect("read websocket error");
-            if msg.is_close() {
-              // remove self from EventHub
-              hub_tx.send(HubEvent::RemovePeer(id)).await.ok();
-              break;
-            } else {
-              hub_tx
-                .send(HubEvent::PeerMsg(PeerMsg {
-                  peer_id: id,
-                  data: Bytes::from(msg.into_data()),
-                }))
-                .await
-                .unwrap();
+        tokio::select! {
+          next = reader.next() => {
+            match next {
+              Some(msg) => {
+                let msg = msg.expect("read websocket error");
+                if msg.is_close() {
+                  // remove self from EventHub
+                  hub_tx.send(HubEvent::RemovePeer(id)).await.ok();
+                  break;
+                } else {
+                  hub_tx
+                    .send(HubEvent::PeerMsg(PeerMsg {
+                      peer_id: id,
+                      data: Bytes::from(msg.into_data()),
+                    }))
+                    .await
+                    .unwrap();
+                }
+              }
+              None => break,
             }
           }
-          None => break,
+          _ = stop_rx.recv() => {
+            break
+          }
         }
       }
     });
@@ -83,6 +94,7 @@ impl PeerBuilder for WebsocketPeerBuilder {
       id,
       tag: self.tag.take().unwrap(),
       writer,
+      stop_tx: Some(stop_tx),
     }))
   }
 }
@@ -91,6 +103,7 @@ pub struct WebsocketPeer {
   id: u32,
   tag: String,
   writer: SplitSink<WebSocketStream<TcpStream>, Message>,
+  stop_tx: Option<Sender<()>>,
 }
 
 #[async_trait]
@@ -100,5 +113,12 @@ impl Peer for WebsocketPeer {
   async fn write(&mut self, data: Bytes) -> Result<()> {
     Ok(self.writer.send(Message::Binary(data.to_vec())).await?)
   }
-  fn stop(&mut self) {}
+
+  fn stop(&mut self) {
+    let tx = self
+      .stop_tx
+      .take()
+      .expect("WebsocketPeer can not be stopped twice");
+    tokio::spawn(async move { tx.send(()).await });
+  }
 }
