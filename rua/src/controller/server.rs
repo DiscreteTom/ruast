@@ -29,13 +29,13 @@ pub struct ServerManager {
 
 impl ServerManager {
   pub fn new(event_buffer: usize) -> Self {
-    let (server_tx, server_rx) = mpsc::channel(event_buffer);
+    let (tx, rx) = mpsc::channel(event_buffer);
     let pm = Arc::new(Mutex::new(PeerManager::new()));
 
     Self {
       pm,
-      tx: server_tx,
-      rx: server_rx,
+      tx,
+      rx,
       handle_ctrl_c: true,
       stdio: false,
       plugins: HashMap::new(),
