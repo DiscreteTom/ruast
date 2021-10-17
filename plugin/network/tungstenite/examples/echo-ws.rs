@@ -1,6 +1,6 @@
 use rua::{
   controller::EventHub,
-  model::{HubEvent, PeerBuilder, Result},
+  model::{PeerBuilder, Result, ServerEvent},
   peer::StdioPeerBuilder,
 };
 use rua_tungstenite::listener::WebsocketListener;
@@ -18,7 +18,7 @@ pub async fn main() -> Result<()> {
   h.add_peer(
     StdioPeerBuilder::new()
       .id(current_peer_id)
-      .hub_tx(tx.clone())
+      .server_tx(tx.clone())
       .build()
       .await?,
   )?;
@@ -33,10 +33,10 @@ pub async fn main() -> Result<()> {
 
   loop {
     match rx.recv().await.unwrap() {
-      HubEvent::PeerMsg(msg) => {
+      ServerEvent::PeerMsg(msg) => {
         h.broadcast_all(msg.data).await;
       }
-      HubEvent::Custom(code) => {
+      ServerEvent::Custom(code) => {
         if code == ws_listener_code {
           h.add_peer(
             ws_peer_rx
@@ -44,14 +44,14 @@ pub async fn main() -> Result<()> {
               .await
               .unwrap()
               .id(current_peer_id)
-              .hub_tx(tx.clone())
+              .server_tx(tx.clone())
               .build()
               .await?,
           )?;
           current_peer_id += 1;
         }
       }
-      HubEvent::RemovePeer(id) => h.remove_peer(id)?,
+      ServerEvent::RemovePeer(id) => h.remove_peer(id)?,
       _ => break,
     }
   }

@@ -1,7 +1,7 @@
 use bytes::{BufMut, BytesMut};
 use rua::{
   controller::EventHub,
-  model::{HubEvent, PeerBuilder, Result},
+  model::{PeerBuilder, Result, ServerEvent},
   peer::{FilePeerBuilder, StdioPeerBuilder},
 };
 use tokio::sync::mpsc;
@@ -14,7 +14,7 @@ pub async fn main() -> Result<()> {
   h.add_peer(
     StdioPeerBuilder::new()
       .id(0)
-      .hub_tx(tx.clone())
+      .server_tx(tx.clone())
       .build()
       .await?,
   )?;
@@ -38,10 +38,10 @@ pub async fn main() -> Result<()> {
 
   loop {
     match rx.recv().await.unwrap() {
-      HubEvent::PeerMsg(msg) => {
+      ServerEvent::PeerMsg(msg) => {
         h.broadcast_all(msg.data).await;
       }
-      HubEvent::RemovePeer(id) => h.remove_peer(id)?,
+      ServerEvent::RemovePeer(id) => h.remove_peer(id)?,
       _ => break,
     }
   }

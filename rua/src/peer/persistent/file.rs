@@ -1,6 +1,6 @@
 use crate::{
   impl_peer, impl_peer_builder,
-  model::HubEvent,
+  model::ServerEvent,
   model::{Peer, PeerBuilder, Result},
 };
 
@@ -13,7 +13,7 @@ pub struct FilePeerBuilder {
   tag: Option<String>,
   id: Option<u32>,
   filename: Option<String>,
-  hub_tx: Option<Sender<HubEvent>>,
+  server_tx: Option<Sender<ServerEvent>>,
   separator: Option<Bytes>,
   transformer: Option<Box<dyn Fn(Bytes) -> Bytes + 'static + Send + Sync>>,
 }
@@ -24,7 +24,7 @@ impl FilePeerBuilder {
       tag: Some(String::from("file")),
       id: None,
       filename: None,
-      hub_tx: None,
+      server_tx: None,
       separator: Some(Bytes::from_static(b"")),
       transformer: Some(Box::new(|data| data)),
     }

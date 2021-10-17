@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use rua::{
   controller::{EventHub, LockstepController},
-  model::{HubEvent, PeerBuilder, Result},
+  model::{PeerBuilder, Result, ServerEvent},
   peer::StdioPeerBuilder,
 };
 use tokio::sync::mpsc;
@@ -19,15 +19,15 @@ pub async fn main() -> Result<()> {
   h.add_peer(
     StdioPeerBuilder::new()
       .id(0)
-      .hub_tx(tx.clone())
+      .server_tx(tx.clone())
       .build()
       .await?,
   )?;
 
   loop {
     match rx.recv().await.unwrap() {
-      HubEvent::PeerMsg(msg) => peer_msgs.push(msg.data),
-      HubEvent::Custom(code) => {
+      ServerEvent::PeerMsg(msg) => peer_msgs.push(msg.data),
+      ServerEvent::Custom(code) => {
         if code == lockstep_op_code {
           // write current step
           h.broadcast_all(Bytes::from(
@@ -44,7 +44,7 @@ pub async fn main() -> Result<()> {
           lockstepper.next_step();
         }
       }
-      HubEvent::RemovePeer(id) => h.remove_peer(id)?,
+      ServerEvent::RemovePeer(id) => h.remove_peer(id)?,
       _ => break,
     }
   }

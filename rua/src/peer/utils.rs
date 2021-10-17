@@ -56,7 +56,7 @@ macro_rules! impl_peer {
 ///
 /// #[async_trait]
 /// impl PeerBuilder for MyPeerBuilder {
-///   // implement id(), hub_tx(), tag(), get_id(), get_tag()
+///   // implement id(), server_tx(), tag(), get_id(), get_tag()
 ///   impl_peer_builder!(all);
 ///   
 ///   // or implement selected methods
@@ -75,9 +75,9 @@ macro_rules! impl_peer_builder {
     }
   };
 
-  (hub_tx) => {
-    fn hub_tx(&mut self, tx: Sender<HubEvent>) -> &mut dyn PeerBuilder {
-      self.hub_tx = Some(tx);
+  (server_tx) => {
+    fn server_tx(&mut self, tx: Sender<ServerEvent>) -> &mut dyn PeerBuilder {
+      self.server_tx = Some(tx);
       self
     }
   };
@@ -99,7 +99,7 @@ macro_rules! impl_peer_builder {
     }
   };
   (all) => {
-    impl_peer_builder!(id,hub_tx,tag,get_id,get_tag);
+    impl_peer_builder!(id,server_tx,tag,get_id,get_tag);
   };
   ($($i:ident),+)=>{
     $(impl_peer_builder!($i);)*

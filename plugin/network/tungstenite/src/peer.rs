@@ -3,7 +3,7 @@ use bytes::Bytes;
 use futures_util::{stream::SplitSink, SinkExt, StreamExt};
 use rua::{
   impl_peer, impl_peer_builder,
-  model::{HubEvent, Peer, PeerBuilder, PeerMsg, Result},
+  model::{Peer, PeerBuilder, PeerMsg, Result, ServerEvent},
 };
 use tokio::{
   net::TcpStream,
@@ -15,7 +15,7 @@ use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 pub struct WebsocketPeerBuilder {
   tag: Option<String>,
   id: Option<u32>,
-  hub_tx: Option<Sender<HubEvent>>,
+  server_tx: Option<Sender<ServerEvent>>,
   ws: Option<TcpStream>,
 }
 
@@ -25,7 +25,7 @@ impl WebsocketPeerBuilder {
       tag: Some(String::from("websocket")),
       ws: None,
       id: None,
-      hub_tx: None,
+      server_tx: None,
     }
   }
 
@@ -45,10 +45,10 @@ impl PeerBuilder for WebsocketPeerBuilder {
 
   async fn build(&mut self) -> Result<Box<dyn Peer + Send>> {
     let id = self.id.ok_or("id is required to build WebsocketPeer")?;
-    let hub_tx = self
-      .hub_tx
+    let server_tx = self
+      .server_tx
       .take()
-      .ok_or("hub_tx is required to build WebsocketPeer")?;
+      .ok_or("server_tx is required to build WebsocketPeer")?;
     let ws = self
       .ws
       .take()
@@ -68,11 +68,11 @@ impl PeerBuilder for WebsocketPeerBuilder {
                 let msg = msg.expect("read websocket error");
                 if msg.is_close() {
                   // remove self from EventHub
-                  hub_tx.send(HubEvent::RemovePeer(id)).await.ok();
+                  server_tx.send(ServerEvent::RemovePeer(id)).await.ok();
                   break;
                 } else {
-                  hub_tx
-                    .send(HubEvent::PeerMsg(PeerMsg {
+                  server_tx
+                    .send(ServerEvent::PeerMsg(PeerMsg {
                       peer_id: id,
                       data: Bytes::from(msg.into_data()),
                     }))

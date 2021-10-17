@@ -8,13 +8,13 @@ use tokio::{
 
 use crate::{
   impl_peer, impl_peer_builder,
-  model::{HubEvent, Peer, PeerBuilder, PeerMsg, Result},
+  model::{Peer, PeerBuilder, PeerMsg, Result, ServerEvent},
 };
 
 pub struct StdioPeerBuilder {
   tag: Option<String>,
   id: Option<u32>,
-  hub_tx: Option<Sender<HubEvent>>,
+  server_tx: Option<Sender<ServerEvent>>,
   disable_input: bool,
   output_selector: Option<Box<dyn Fn(&Bytes) -> bool + 'static + Send>>,
 }
@@ -24,7 +24,7 @@ impl StdioPeerBuilder {
     Self {
       tag: Some(String::from("stdio")),
       id: None,
-      hub_tx: None,
+      server_tx: None,
       disable_input: false,
       output_selector: Some(Box::new(|_| true)),
     }
@@ -54,10 +54,10 @@ impl PeerBuilder for StdioPeerBuilder {
 
   async fn build(&mut self) -> Result<Box<dyn Peer + Send>> {
     let id = self.id.ok_or("id is required to build StdioPeer")?;
-    let hub_tx = self
-      .hub_tx
+    let server_tx = self
+      .server_tx
       .take()
-      .ok_or("hub_tx is required to build StdioPeer")?;
+      .ok_or("server_tx is required to build StdioPeer")?;
     let running = Arc::new(Mutex::new(true));
 
     // start reader thread
@@ -80,8 +80,8 @@ impl PeerBuilder for StdioPeerBuilder {
               }
               if *running.lock().await {
                 // send
-                hub_tx
-                  .send(HubEvent::PeerMsg(PeerMsg {
+                server_tx
+                  .send(ServerEvent::PeerMsg(PeerMsg {
                     peer_id: id,
                     data: Bytes::from(line.into_bytes()),
                   }))

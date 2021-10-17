@@ -3,7 +3,7 @@ use bytes::Bytes;
 use std::{collections::HashMap, fmt};
 use tokio::sync::mpsc::Sender;
 
-use crate::controller::{server::ServerManager, EventHub};
+use crate::controller::server::ServerManager;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub type MultiResult<T> = HashMap<u32, Result<T>>;
@@ -21,7 +21,7 @@ pub trait Peer {
 pub trait PeerBuilder {
   fn id(&mut self, id: u32) -> &mut dyn PeerBuilder;
   fn tag(&mut self, tag: String) -> &mut dyn PeerBuilder;
-  fn hub_tx(&mut self, hub_tx: Sender<HubEvent>) -> &mut dyn PeerBuilder;
+  fn server_tx(&mut self, server_tx: Sender<ServerEvent>) -> &mut dyn PeerBuilder;
   async fn build(&mut self) -> Result<Box<dyn Peer + Send>>;
 
   fn get_id(&self) -> Option<u32>;
@@ -35,14 +35,14 @@ pub struct PeerMsg {
 }
 
 #[derive(Debug)]
-pub enum HubEvent {
+pub enum ServerEvent {
   Custom(u32),
   PeerMsg(PeerMsg),
   RemovePeer(u32),
 }
 
 pub trait Plugin {
-  fn start(&self, code: u32, hub_tx: Sender<HubEvent>);
+  fn start(&self, code: u32, server_tx: Sender<ServerEvent>);
   fn handle(&self, hub: &mut ServerManager);
 }
 

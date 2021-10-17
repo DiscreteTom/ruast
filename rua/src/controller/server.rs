@@ -6,7 +6,7 @@ use tokio::sync::{
 };
 
 use crate::{
-  model::{HubEvent, Peer, PeerBuilder, PeerIdAllocator, PeerMsg, Plugin, Result},
+  model::{Peer, PeerBuilder, PeerIdAllocator, PeerMsg, Plugin, Result, ServerEvent},
   peer::StdioPeerBuilder,
 };
 
@@ -17,8 +17,8 @@ use super::{
 
 pub struct ServerManager {
   hub: Arc<Mutex<EventHub>>,
-  hub_tx: Sender<HubEvent>,
-  hub_rx: Receiver<HubEvent>,
+  server_tx: Sender<ServerEvent>,
+  hub_rx: Receiver<ServerEvent>,
   handle_ctrl_c: bool,
   stdio: bool,
   plugins: HashMap<u32, Box<dyn Plugin>>,
@@ -29,12 +29,12 @@ pub struct ServerManager {
 
 impl ServerManager {
   pub fn new(event_buffer: usize) -> Self {
-    let (hub_tx, hub_rx) = mpsc::channel(event_buffer);
+    let (server_tx, hub_rx) = mpsc::channel(event_buffer);
     let hub = Arc::new(Mutex::new(EventHub::new()));
 
     Self {
       hub,
-      hub_tx,
+      server_tx,
       hub_rx,
       handle_ctrl_c: true,
       stdio: false,
@@ -75,7 +75,7 @@ impl ServerManager {
     self.hub.lock().await.add_peer(
       peer_builder
         .id(id)
-        .hub_tx(self.hub_tx.clone())
+        .server_tx(self.server_tx.clone())
         .build()
         .await?,
     )?;
@@ -89,7 +89,7 @@ impl ServerManager {
   pub async fn start(&mut self) {
     // start plugins
     for (code, plugin) in &self.plugins {
-      plugin.start(*code, self.hub_tx.clone());
+      plugin.start(*code, self.server_tx.clone());
     }
 
     // stdio peer
@@ -102,17 +102,17 @@ impl ServerManager {
 
     loop {
       match self.hub_rx.recv().await.unwrap() {
-        HubEvent::PeerMsg(msg) => (self.peer_msg_handler)(msg, self.hub.clone()),
-        HubEvent::RemovePeer(id) => {
+        ServerEvent::PeerMsg(msg) => (self.peer_msg_handler)(msg, self.hub.clone()),
+        ServerEvent::RemovePeer(id) => {
           // TODO: before remove peer
           self.remove_peer(id).await.unwrap();
           // TODO: failed to remove peer
           // TODO: after remove peer
         }
-        HubEvent::Custom(0) => {
+        ServerEvent::Custom(0) => {
           break;
         }
-        HubEvent::Custom(id) => {
+        ServerEvent::Custom(id) => {
           if let Some(plugin) = self.plugins.get(&id) {
             // plugin.handle(self);
           } else {

@@ -46,25 +46,25 @@
                         <mxPoint x="350" y="100" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="19" value="&amp;nbsp;HubEvent::PeerMsg&amp;nbsp;" style="endArrow=classic;html=1;" edge="1" parent="1">
+                <mxCell id="19" value="&amp;nbsp;ServerEvent::PeerMsg&amp;nbsp;" style="endArrow=classic;html=1;" edge="1" parent="1">
                     <mxGeometry width="50" height="50" relative="1" as="geometry">
                         <mxPoint x="350" y="130" as="sourcePoint"/>
                         <mxPoint x="210" y="130" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="21" value="&amp;nbsp;HubEvent::Custom&amp;nbsp;" style="endArrow=classic;html=1;" edge="1" parent="1">
+                <mxCell id="21" value="&amp;nbsp;ServerEvent::Custom&amp;nbsp;" style="endArrow=classic;html=1;" edge="1" parent="1">
                     <mxGeometry width="50" height="50" relative="1" as="geometry">
                         <mxPoint x="660" y="189.5" as="sourcePoint"/>
                         <mxPoint x="210" y="189.5" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="22" value="&amp;nbsp;HubEvent::Custom&amp;nbsp;" style="endArrow=classic;html=1;" edge="1" parent="1">
+                <mxCell id="22" value="&amp;nbsp;ServerEvent::Custom&amp;nbsp;" style="endArrow=classic;html=1;" edge="1" parent="1">
                     <mxGeometry width="50" height="50" relative="1" as="geometry">
                         <mxPoint x="660" y="269.5" as="sourcePoint"/>
                         <mxPoint x="210" y="269.5" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="23" value="&amp;nbsp;HubEvent::Custom&amp;nbsp;" style="endArrow=classic;html=1;" edge="1" parent="1">
+                <mxCell id="23" value="&amp;nbsp;ServerEvent::Custom&amp;nbsp;" style="endArrow=classic;html=1;" edge="1" parent="1">
                     <mxGeometry width="50" height="50" relative="1" as="geometry">
                         <mxPoint x="660" y="349.5" as="sourcePoint"/>
                         <mxPoint x="210" y="349.5" as="targetPoint"/>

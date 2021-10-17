@@ -1,4 +1,4 @@
-use rua::model::HubEvent;
+use rua::model::ServerEvent;
 use tokio::{
   net::TcpListener,
   sync::mpsc::{self, Receiver, Sender},
@@ -9,7 +9,7 @@ use crate::peer::WebsocketPeerBuilder;
 pub struct WebsocketListener {
   addr: String,
   op_code: u32,
-  hub_tx: Sender<HubEvent>,
+  server_tx: Sender<ServerEvent>,
   peer_tx: Sender<WebsocketPeerBuilder>,
 }
 
@@ -17,7 +17,7 @@ impl WebsocketListener {
   pub fn new(
     addr: &str,
     op_code: u32,
-    hub_tx: Sender<HubEvent>,
+    server_tx: Sender<ServerEvent>,
     buffer: usize,
   ) -> (Self, Receiver<WebsocketPeerBuilder>) {
     let (peer_tx, peer_rx) = mpsc::channel(buffer);
@@ -25,7 +25,7 @@ impl WebsocketListener {
       WebsocketListener {
         addr: String::from(addr),
         op_code,
-        hub_tx,
+        server_tx,
         peer_tx,
       },
       peer_rx,
@@ -36,8 +36,8 @@ impl WebsocketListener {
     let server = TcpListener::bind(&self.addr).await.unwrap();
     while let Ok((stream, _)) = server.accept().await {
       self
-        .hub_tx
-        .send(HubEvent::Custom(self.op_code))
+        .server_tx
+        .send(ServerEvent::Custom(self.op_code))
         .await
         .unwrap();
       self
