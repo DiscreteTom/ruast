@@ -46,10 +46,9 @@ impl ServerManager {
     self
   }
 
-  pub fn register_plugin(&mut self, plugin: Box<dyn Plugin>) -> u32 {
+  pub fn register_plugin(&mut self, plugin: Box<dyn Plugin>) {
     let id = self.plugin_id_allocator.next();
     self.plugins.insert(id, plugin);
-    id
   }
 
   pub async fn add_peer(&mut self, mut peer_builder: Box<dyn PeerBuilder>) -> Result<u32> {
@@ -70,8 +69,8 @@ impl ServerManager {
 
   pub async fn start(&mut self) {
     // start plugins
-    for (_, plugin) in &self.plugins {
-      plugin.start();
+    for (code, plugin) in &self.plugins {
+      plugin.start(*code);
     }
 
     // stdio peer
