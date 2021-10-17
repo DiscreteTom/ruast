@@ -13,13 +13,7 @@ pub struct EventHub {
 impl EventHub {
   pub fn new(buffer: usize) -> (Self, Receiver<HubEvent>) {
     let (tx, rx) = mpsc::channel(buffer);
-    (
-      EventHub {
-        peers: HashMap::new(),
-        tx,
-      },
-      rx,
-    )
+    (Self::with_tx(tx), rx)
   }
 
   pub fn with_tx(tx: Sender<HubEvent>) -> Self {
