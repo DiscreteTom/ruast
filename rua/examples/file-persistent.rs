@@ -8,17 +8,17 @@ use tokio::sync::mpsc;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-  let mut h = PeerManager::new();
+  let mut pm = PeerManager::new();
   let (tx, mut rx) = mpsc::channel(256);
 
-  h.add_peer(
+  pm.add_peer(
     StdioPeerBuilder::new()
       .id(0)
       .server_tx(tx.clone())
       .build()
       .await?,
   )?;
-  h.add_peer(
+  pm.add_peer(
     FilePeerBuilder::new()
       .filename("log.txt".to_string())
       .separator("\n")
@@ -39,9 +39,9 @@ pub async fn main() -> Result<()> {
   loop {
     match rx.recv().await.unwrap() {
       ServerEvent::PeerMsg(msg) => {
-        h.broadcast_all(msg.data).await;
+        pm.broadcast_all(msg.data).await;
       }
-      ServerEvent::RemovePeer(id) => h.remove_peer(id)?,
+      ServerEvent::RemovePeer(id) => pm.remove_peer(id)?,
       _ => break,
     }
   }
