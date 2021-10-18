@@ -21,9 +21,10 @@ pub struct ServerManager {
   rx: Receiver<ServerEvent>,
   handle_ctrl_c: bool,
   stdio: bool,
+  stdio_id: u32,
   plugins: HashMap<u32, Box<dyn Plugin>>,
   plugin_id_allocator: SimpleIdGenerator,
-  peer_id_allocator: Box<dyn PeerIdAllocator>,
+  peer_id_allocator: Option<Box<dyn PeerIdAllocator>>,
   peer_msg_handler: Box<dyn Fn(PeerMsg, Arc<Mutex<PeerManager>>) + 'static>,
 }
 
@@ -38,20 +39,38 @@ impl ServerManager {
       rx,
       handle_ctrl_c: true,
       stdio: false,
+      stdio_id: 0,
       plugins: HashMap::new(),
       plugin_id_allocator: SimpleIdGenerator::new(0),
-      peer_id_allocator: Box::new(SimplePeerIdAllocator::new(0)),
+      peer_id_allocator: None,
       peer_msg_handler: Box::new(|_, _| {}),
     }
   }
 
+  /// Enable StdioPeer with id=0.
   pub fn stdio(&mut self, enable: bool) -> &mut Self {
     self.stdio = enable;
     self
   }
 
+  pub fn stdio_with_id(&mut self, id: u32) -> &mut Self {
+    self.stdio = true;
+    self.stdio_id = id;
+    self
+  }
+
   pub fn peer_id_allocator(&mut self, allocator: Box<dyn PeerIdAllocator>) -> &mut Self {
-    self.peer_id_allocator = allocator;
+    self.peer_id_allocator = Some(allocator);
+    self
+  }
+
+  /// Auto assign peer id from 1.
+  pub fn auto_peer_id(&mut self, enable: bool) -> &mut Self {
+    self.peer_id_allocator = if enable {
+      Some(Box::new(SimplePeerIdAllocator::new(0)))
+    } else {
+      None
+    };
     self
   }
 
@@ -74,14 +93,22 @@ impl ServerManager {
   }
 
   pub async fn add_peer(&mut self, mut peer_builder: Box<dyn PeerBuilder>) -> Result<u32> {
-    let id = self.peer_id_allocator.allocate(&peer_builder);
-    self.pm.lock().await.add_peer(
-      peer_builder
-        .id(id)
-        .server_tx(self.tx.clone())
-        .build()
-        .await?,
-    )?;
+    let id = match &mut self.peer_id_allocator {
+      Some(allocator) => {
+        let id = allocator.allocate(&peer_builder);
+        peer_builder.id(id);
+        id
+      }
+      _ => peer_builder
+        .get_id()
+        .ok_or("peer_builder must have an id when server.peer_id_allocator has not been set")?,
+    };
+
+    self
+      .pm
+      .lock()
+      .await
+      .add_peer(peer_builder.server_tx(self.tx.clone()).build().await?)?;
     Ok(id)
   }
 
@@ -98,7 +125,11 @@ impl ServerManager {
     // stdio peer
     if self.stdio {
       self
-        .add_peer(StdioPeerBuilder::new().boxed())
+        .add_peer({
+          let mut pb = StdioPeerBuilder::new();
+          pb.id(self.stdio_id);
+          Box::new(pb)
+        })
         .await
         .expect("can not build StdioPeer");
     }
