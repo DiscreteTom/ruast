@@ -1,50 +1,29 @@
-use bytes::{BufMut, BytesMut};
-use rua::{
-  controller::PeerManager,
-  model::{PeerBuilder, Result, ServerEvent},
-  peer::{FilePeerBuilder, StdioPeerBuilder},
-};
-use tokio::sync::mpsc;
+use rua::model::{PeerEvent, Result};
+use rua::peer::persistent::file::FilePeerBuilder;
+use rua::{broadcaster::Broadcaster, peer::StdioPeerBuilder};
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-  let mut pm = PeerManager::new();
-  let (tx, mut rx) = mpsc::channel(256);
+  let mut bc = Broadcaster::new(16);
 
-  pm.add_peer(
-    StdioPeerBuilder::new()
-      .id(0)
-      .server_tx(tx.clone())
-      .build()
-      .await?,
-  )?;
-  pm.add_peer(
-    FilePeerBuilder::new()
-      .filename("log.txt".to_string())
-      .separator("\n")
-      .transformer(|data| {
-        let prepend = b">> (";
-        let append = b");";
-        let mut buf = BytesMut::with_capacity(prepend.len() + data.len() + append.len());
-        buf.put(&prepend[..]);
-        buf.put(data);
-        buf.put(&append[..]);
-        buf.freeze()
-      })
-      .id(1)
-      .build()
-      .await?,
-  )?;
+  bc.add_target({
+    let mut builder = StdioPeerBuilder::new(16);
+    builder.id(0).sink(bc.tx().clone());
+    builder.build().await.unwrap()
+  })
+  .await;
 
-  loop {
-    match rx.recv().await.unwrap() {
-      ServerEvent::PeerMsg(msg) => {
-        pm.broadcast_all(msg.data).await;
-      }
-      ServerEvent::RemovePeer(id) => pm.remove_peer(id)?,
-      _ => break,
-    }
-  }
+  bc.add_target({
+    let mut builder = FilePeerBuilder::new(16);
+    builder.id(1).filename("log.txt".to_string());
+    builder.build().await.unwrap()
+  })
+  .await;
+
+  tokio::signal::ctrl_c().await.unwrap();
+
+  bc.tx().send(PeerEvent::Stop).await.ok();
+  bc.stop().await;
 
   Ok(())
 }
