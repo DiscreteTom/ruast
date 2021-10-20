@@ -1,138 +1,125 @@
-use async_trait::async_trait;
-use bytes::Bytes;
-use std::sync::Arc;
+use bytes::{BufMut, BytesMut};
 use tokio::{
-  io::{self, AsyncWriteExt, Stdout},
-  sync::{mpsc::Sender, Mutex},
+  io::{self, AsyncReadExt, AsyncWriteExt},
+  sync::mpsc::{self, Receiver, Sender},
 };
 
-use crate::{
-  impl_peer, impl_peer_builder,
-  model::{Peer, PeerBuilder, PeerMsg, Result, ServerEvent},
-};
+use crate::model::{Peer, PeerEvent, Result};
 
 pub struct StdioPeerBuilder {
-  tag: Option<String>,
   id: Option<u32>,
-  server_tx: Option<Sender<ServerEvent>>,
-  disable_input: bool,
-  output_selector: Option<Box<dyn Fn(&Bytes) -> bool + 'static + Send>>,
+  sink: Option<Sender<PeerEvent>>,
+  tag: String,
+
+  rx: Receiver<PeerEvent>,
+  tx: Sender<PeerEvent>,
 }
 
 impl StdioPeerBuilder {
-  pub fn new() -> Self {
+  pub fn new(buffer: usize) -> Self {
+    let (tx, rx) = mpsc::channel(buffer);
     Self {
-      tag: Some(String::from("stdio")),
+      tx,
+      rx,
       id: None,
-      server_tx: None,
-      disable_input: false,
-      output_selector: Some(Box::new(|_| true)),
+      sink: None,
+      tag: String::from("stdio"),
     }
   }
 
-  pub fn disable_input(mut self, disable: bool) -> Self {
-    self.disable_input = disable;
+  pub fn id(&mut self, id: u32) -> &mut Self {
+    self.id = Some(id);
     self
   }
 
-  pub fn output_selector<F>(mut self, filter: F) -> Self
-  where
-    F: Fn(&Bytes) -> bool + 'static + Send,
-  {
-    self.output_selector = Some(Box::new(filter));
+  pub fn tag(&mut self, tag: String) -> &mut Self {
+    self.tag = tag;
     self
   }
 
-  pub fn boxed(self) -> Box<dyn PeerBuilder> {
-    Box::new(self)
+  pub fn sink(&mut self, sink: Sender<PeerEvent>) -> &mut Self {
+    self.sink = Some(sink);
+    self
   }
-}
 
-#[async_trait]
-impl PeerBuilder for StdioPeerBuilder {
-  impl_peer_builder!(all);
+  pub fn tx(&self) -> &Sender<PeerEvent> {
+    &self.tx
+  }
 
-  async fn build(&mut self) -> Result<Box<dyn Peer + Send>> {
-    let id = self.id.ok_or("id is required to build StdioPeer")?;
-    let server_tx = self
-      .server_tx
-      .take()
-      .ok_or("server_tx is required to build StdioPeer")?;
-    let running = Arc::new(Mutex::new(true));
+  pub async fn build(self) -> Result<Peer> {
+    let id = self.id.ok_or("missing id when build StdioPeer")?;
+    let sink = self.sink.ok_or("missing sink when build StdioPeer")?;
+    let mut rx = self.rx;
 
-    // start reader thread
-    if !self.disable_input {
-      let running = running.clone();
-      tokio::spawn(async move {
-        let stdin = std::io::stdin();
-        loop {
-          // read line
-          let mut line = String::new();
-          match stdin.read_line(&mut line) {
-            Ok(0) => break, // EOF
-            Ok(_) => {
-              // remove trailing newline
-              if line.ends_with('\n') {
-                line.pop();
-                if line.ends_with('\r') {
-                  line.pop();
+    let (stop_tx, mut stop_rx) = mpsc::channel(1);
+
+    // reader thread
+    tokio::spawn(async move {
+      let mut stdin = io::stdin();
+      let mut buffer = BytesMut::with_capacity(64);
+
+      loop {
+        tokio::select! {
+          _ = stop_rx.recv() => {
+            break
+          }
+          b = stdin.read_u8() => {
+            match b{
+              Ok(b)=>{
+                if b == b'\n'{
+                  // send
+                  sink
+                    .send(PeerEvent::Write(buffer.freeze()))
+                    .await
+                    .expect("StdioPeer send event failed");
+                    buffer = BytesMut::with_capacity(64);
+                } else if b != b'\r'{
+                  // append
+                  if buffer.len() == buffer.capacity() {
+                    buffer.reserve(64);
+                  }
+                  buffer.put_u8(b);
                 }
               }
-              if *running.lock().await {
-                // send
-                server_tx
-                  .send(ServerEvent::PeerMsg(PeerMsg {
-                    peer_id: id,
-                    data: Bytes::from(line.into_bytes()),
-                  }))
-                  .await
-                  .unwrap()
-              } else {
+              Err(_)=>{
                 break;
               }
             }
-            Err(_) => break,
           }
         }
-      });
-    }
-
-    Ok(Box::new(StdioPeer {
-      id,
-      tag: self.tag.take().unwrap(),
-      stdout: io::stdout(),
-      running: running.clone(),
-      output_selector: self.output_selector.take().unwrap(),
-    }))
-  }
-}
-
-pub struct StdioPeer {
-  tag: String,
-  id: u32,
-  stdout: Stdout,
-  running: Arc<Mutex<bool>>,
-  output_selector: Box<dyn Fn(&Bytes) -> bool + 'static + Send>,
-}
-
-#[async_trait]
-impl Peer for StdioPeer {
-  impl_peer!(all);
-
-  async fn write(&mut self, data: Bytes) -> Result<()> {
-    if (self.output_selector)(&data) {
-      self.stdout.write_all(&data).await?;
-      self.stdout.write_all(b"\n").await?;
-      Ok(self.stdout.flush().await?)
-    } else {
-      Ok(())
-    }
-  }
-
-  fn stop(&mut self) {
-    let running = self.running.clone();
-    tokio::spawn(async move {
-      *running.lock().await = false;
+      }
     });
+
+    // writer thread
+    tokio::spawn(async move {
+      let mut stdout = io::stdout();
+      loop {
+        match rx.recv().await {
+          Some(e) => match e {
+            PeerEvent::Write(data) => {
+              stdout
+                .write_all(&data)
+                .await
+                .expect("StdioPeer write data failed");
+              stdout
+                .write_all(b"\n")
+                .await
+                .expect("StdioPeer write \\n failed");
+              stdout.flush().await.expect("StdioPeer flush output failed");
+            }
+            PeerEvent::Stop => {
+              stop_tx.send(true).await.ok();
+              break;
+            }
+          },
+          None => {
+            stop_tx.send(true).await.ok();
+            break;
+          }
+        }
+      }
+    });
+
+    Ok(Peer::new(id, self.tag, self.tx))
   }
 }
