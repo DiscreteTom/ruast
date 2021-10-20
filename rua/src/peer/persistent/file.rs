@@ -1,108 +1,85 @@
-use crate::{
-  impl_peer, impl_peer_builder,
-  model::ServerEvent,
-  model::{Peer, PeerBuilder, Result},
+use tokio::{
+  io::AsyncWriteExt,
+  sync::mpsc::{self, Receiver, Sender},
 };
 
-use async_trait::async_trait;
-use bytes::Bytes;
-use tokio::fs::File;
-use tokio::{io::AsyncWriteExt, sync::mpsc::Sender};
+use crate::{
+  impl_peer_builder,
+  model::{Peer, PeerEvent, Result},
+};
 
 pub struct FilePeerBuilder {
-  tag: Option<String>,
   id: Option<u32>,
+  sink: Option<Sender<PeerEvent>>,
+  tag: String,
+
+  rx: Receiver<PeerEvent>,
+  tx: Sender<PeerEvent>,
   filename: Option<String>,
-  server_tx: Option<Sender<ServerEvent>>,
-  separator: Option<Bytes>,
-  transformer: Option<Box<dyn Fn(Bytes) -> Bytes + 'static + Send + Sync>>,
 }
 
 impl FilePeerBuilder {
-  pub fn new() -> Self {
+  impl_peer_builder!(all);
+
+  pub fn new(buffer: usize) -> Self {
+    let (tx, rx) = mpsc::channel(buffer);
+
     Self {
-      tag: Some(String::from("file")),
+      tx,
+      rx,
       id: None,
+      sink: None,
+      tag: String::from("file"),
       filename: None,
-      server_tx: None,
-      separator: Some(Bytes::from_static(b"")),
-      transformer: Some(Box::new(|data| data)),
     }
   }
 
-  pub fn filename(mut self, filename: String) -> Self {
+  pub fn filename(&mut self, filename: String) -> &mut Self {
     self.filename = Some(filename);
     self
   }
 
-  pub fn separator(mut self, s: &'static str) -> Self {
-    self.separator = Some(Bytes::from(s));
-    self
-  }
-
-  pub fn binary_separator(mut self, s: Bytes) -> Self {
-    self.separator = Some(s);
-    self
-  }
-
-  pub fn transformer<F>(mut self, f: F) -> Self
-  where
-    F: Fn(Bytes) -> Bytes + 'static + Send + Sync,
-  {
-    self.transformer = Some(Box::new(f));
-    self
-  }
-
-  pub fn boxed(self) -> Box<dyn PeerBuilder> {
-    Box::new(self)
-  }
-}
-
-#[async_trait]
-impl PeerBuilder for FilePeerBuilder {
-  impl_peer_builder!(all);
-
-  async fn build(&mut self) -> Result<Box<dyn Peer + Send>> {
-    let id = self.id.ok_or("id is required to build FilePeer")?;
+  pub async fn build(self) -> Result<Peer> {
+    let id = self.id.ok_or("missing id when build FilePeer")?;
     let filename = self
       .filename
-      .take()
-      .ok_or("filename is required to build FilePeer")?;
+      .ok_or("missing filename when build FilePeer")?;
 
-    let file = tokio::fs::OpenOptions::new()
+    let mut file = tokio::fs::OpenOptions::new()
       .create(true)
       .write(true)
       .append(true)
       .open(&filename)
       .await?;
 
-    Ok(Box::new(FilePeer {
-      tag: self.tag.take().unwrap(),
-      id,
-      file,
-      transformer: self.transformer.take().unwrap(),
-      separator: self.separator.take().unwrap(),
-    }))
+    // writer thread
+    let mut rx = self.rx;
+    tokio::spawn(async move {
+      loop {
+        match rx.recv().await {
+          Some(e) => match e {
+            PeerEvent::Write(data) => {
+              file
+                .write_all(&data)
+                .await
+                .expect("FilePeer write data failed");
+              file
+                .write_all(b"\n")
+                .await
+                .expect("FilePeer write \\n failed");
+              file.flush().await.expect("FilePeer flush output failed");
+            }
+            PeerEvent::Stop => {
+              break;
+            }
+          },
+          None => {
+            break;
+          }
+        }
+      }
+    });
+
+    Ok(Peer::new(id, self.tag, self.tx))
   }
-}
-
-pub struct FilePeer {
-  tag: String,
-  id: u32,
-  file: File,
-  separator: Bytes,
-  transformer: Box<dyn Fn(Bytes) -> Bytes + 'static + Send + Sync>,
-}
-
-#[async_trait]
-impl Peer for FilePeer {
-  impl_peer!(all);
-
-  async fn write(&mut self, data: Bytes) -> Result<()> {
-    self.file.write_all(&(self.transformer)(data)).await?;
-    self.file.write_all(&self.separator).await?;
-    Ok(self.file.sync_data().await?)
-  }
-
-  fn stop(&mut self) {}
 }
