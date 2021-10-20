@@ -10,7 +10,7 @@ use crate::model::{Peer, PeerEvent};
 pub struct Broadcaster {
   targets: Arc<Mutex<Vec<Peer>>>,
   tx: Sender<PeerEvent>,
-  stop_tx: Sender<bool>,
+  stop_tx: Sender<()>,
 }
 
 impl Broadcaster {
@@ -67,6 +67,6 @@ impl Broadcaster {
   }
 
   pub async fn stop(self) {
-    self.stop_tx.send(true).await.ok();
+    self.stop_tx.send(()).await.ok();
   }
 }
