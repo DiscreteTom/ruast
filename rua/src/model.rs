@@ -27,7 +27,7 @@ impl Peer {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PeerEvent {
   Write(Bytes),
   Stop,
