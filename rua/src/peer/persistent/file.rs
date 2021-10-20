@@ -67,7 +67,10 @@ impl FilePeerBuilder {
                 .write_all(b"\n")
                 .await
                 .expect("FilePeer write \\n failed");
-              file.flush().await.expect("FilePeer flush output failed");
+              file
+                .sync_data()
+                .await
+                .expect("FilePeer flush output failed");
             }
             PeerEvent::Stop => {
               break;
