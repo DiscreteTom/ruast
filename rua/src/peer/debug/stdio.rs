@@ -4,7 +4,10 @@ use tokio::{
   sync::mpsc::{self, Receiver, Sender},
 };
 
-use crate::model::{Peer, PeerEvent, Result};
+use crate::{
+  impl_peer_builder,
+  model::{Peer, PeerEvent, Result},
+};
 
 pub struct StdioPeerBuilder {
   id: Option<u32>,
@@ -16,6 +19,8 @@ pub struct StdioPeerBuilder {
 }
 
 impl StdioPeerBuilder {
+  impl_peer_builder!(all);
+
   pub fn new(buffer: usize) -> Self {
     let (tx, rx) = mpsc::channel(buffer);
     Self {
@@ -25,25 +30,6 @@ impl StdioPeerBuilder {
       sink: None,
       tag: String::from("stdio"),
     }
-  }
-
-  pub fn id(&mut self, id: u32) -> &mut Self {
-    self.id = Some(id);
-    self
-  }
-
-  pub fn tag(&mut self, tag: String) -> &mut Self {
-    self.tag = tag;
-    self
-  }
-
-  pub fn sink(&mut self, sink: Sender<PeerEvent>) -> &mut Self {
-    self.sink = Some(sink);
-    self
-  }
-
-  pub fn tx(&self) -> &Sender<PeerEvent> {
-    &self.tx
   }
 
   pub async fn build(self) -> Result<Peer> {
