@@ -1,53 +1,54 @@
-use bytes::Bytes;
-use rua::{
-  controller::{LockstepController, PeerManager},
-  model::{PeerBuilder, Result, ServerEvent},
-  peer::StdioPeerBuilder,
-};
+use bytes::BytesMut;
+use rua::lockstep::LockstepController;
+use rua::model::{PeerEvent, Result};
+use rua::peer::StdioPeerBuilder;
 use tokio::sync::mpsc;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-  let mut peer_msgs = Vec::new();
-  let mut h = PeerManager::new();
-  let (tx, mut rx) = mpsc::channel(256);
+  let (event_tx, mut event_rx) = mpsc::channel(16);
+  let mut data = BytesMut::new();
 
-  let lockstep_op_code = 0;
-  let mut lockstepper = LockstepController::new(1000, tx.clone(), lockstep_op_code);
-  lockstepper.next_step();
+  let stdio = {
+    let mut builder = StdioPeerBuilder::new(16);
+    builder.id(0).sink(event_tx);
+    builder.build().await.unwrap()
+  };
 
-  h.add_peer(
-    StdioPeerBuilder::new()
-      .id(0)
-      .server_tx(tx.clone())
-      .build()
-      .await?,
-  )?;
+  let (lockstep, mut step_rx) = LockstepController::new(1000);
 
   loop {
-    match rx.recv().await.unwrap() {
-      ServerEvent::PeerMsg(msg) => peer_msgs.push(msg.data),
-      ServerEvent::Custom(code) => {
-        if code == lockstep_op_code {
-          // write current step
-          h.broadcast_all(Bytes::from(
-            (lockstepper.current_step().to_string() + ":\n").into_bytes(),
-          ))
-          .await;
-
-          // write all msg
-          for data in &peer_msgs {
-            h.broadcast_all(data.clone()).await;
+    tokio::select! {
+      e = event_rx.recv() => {
+        match e {
+          None => break,
+          Some(e) => {
+            if let PeerEvent::Write(msg) = e {
+              data.extend_from_slice(&msg[..]);
+            }
           }
-
-          peer_msgs.clear();
-          lockstepper.next_step();
         }
       }
-      ServerEvent::RemovePeer(id) => h.remove_peer(id)?,
-      _ => break,
+      step = step_rx.recv() => {
+        match step {
+          None => break,
+          Some(step) => {
+            let mut result = BytesMut::new();
+            result.extend_from_slice(&(step.to_string()+":\n").into_bytes());
+            result.extend_from_slice(&data.freeze());
+            stdio.tx().send(PeerEvent::Write(result.freeze())).await.unwrap();
+            data = BytesMut::new();
+          }
+        }
+      }
+      _ = tokio::signal::ctrl_c() => {
+        break
+      }
     }
   }
+
+  stdio.tx().send(PeerEvent::Stop).await.unwrap();
+  lockstep.stop().await;
 
   Ok(())
 }
