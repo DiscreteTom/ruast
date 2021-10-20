@@ -1,11 +1,31 @@
 use bytes::Bytes;
-
-// pub trait Peer {
-//   fn id(&self) -> u32;
-//   fn tag(&self) -> &str;
-// }
+use tokio::sync::mpsc::Sender;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+pub struct Peer {
+  id: u32,
+  tag: String,
+  tx: Sender<PeerEvent>,
+}
+
+impl Peer {
+  pub fn new(id: u32, tag: String, tx: Sender<PeerEvent>) -> Self {
+    Self { id, tag, tx }
+  }
+
+  pub fn id(&self) -> u32 {
+    self.id
+  }
+
+  pub fn tag(&self) -> &str {
+    &self.tag
+  }
+
+  pub fn tx(&self) -> &Sender<PeerEvent> {
+    &self.tx
+  }
+}
 
 #[derive(Debug)]
 pub enum PeerEvent {
