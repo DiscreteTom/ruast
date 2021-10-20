@@ -1,26 +1,18 @@
-use rua::{controller::server::ServerManager, model::Result};
+use rua::model::{PeerEvent, Result};
+use rua::peer::StdioPeerBuilder;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-  // create a server
-  let mut s = ServerManager::new(256);
+  let stdio = {
+    let mut builder = StdioPeerBuilder::new(16);
+    let sink = builder.tx().clone();
+    builder.id(0).sink(sink); // echo to self
+    builder.build().await.unwrap()
+  };
 
-  // enable stdio
-  s.stdio(true);
+  tokio::signal::ctrl_c().await.unwrap();
 
-  // a customizable way to enable stdio
-  // s.add_peer(
-  //   StdioPeerBuilder::new()
-  //     .output_selector(|data| !data.starts_with(b"#"))
-  //     .boxed(),
-  // )
-  // .await?;
-
-  s.on_peer_msg(|msg, pm| {
-    tokio::spawn(async move { pm.lock().await.echo(msg).await.unwrap() });
-  });
-
-  s.start().await;
+  stdio.tx().send(PeerEvent::Stop).await.unwrap();
 
   Ok(())
 }
