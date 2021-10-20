@@ -1,5 +1,6 @@
-pub mod debug;
+pub mod file;
+pub mod stdio;
 pub mod utils;
-pub use debug::stdio::StdioPeerBuilder;
-pub mod persistent;
-pub use persistent::file::FilePeerBuilder;
+
+pub use file::FilePeerBuilder;
+pub use stdio::StdioPeerBuilder;
