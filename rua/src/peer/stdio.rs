@@ -4,77 +4,64 @@ use tokio::{
   sync::mpsc::{self, Receiver, Sender},
 };
 
-use crate::{
-  impl_peer_builder,
-  model::{Peer, PeerEvent, Result},
-};
+use crate::{impl_peer_builder, model::PeerEvent};
 
-pub struct StdioPeerBuilder {
-  id: Option<u32>,
+pub struct StdioPeer {
   sink: Option<Sender<PeerEvent>>,
-  tag: String,
-
   rx: Receiver<PeerEvent>,
   tx: Sender<PeerEvent>,
 }
 
-impl StdioPeerBuilder {
-  impl_peer_builder!(all);
+impl StdioPeer {
+  impl_peer_builder!(tx, sink);
 
   pub fn new(buffer: usize) -> Self {
     let (tx, rx) = mpsc::channel(buffer);
-    Self {
-      tx,
-      rx,
-      id: None,
-      sink: None,
-      tag: String::from("stdio"),
-    }
+    Self { tx, rx, sink: None }
   }
 
-  pub async fn build(self) -> Result<Peer> {
-    let id = self.id.ok_or("missing id when build StdioPeer")?;
-    let sink = self.sink.ok_or("missing sink when build StdioPeer")?;
+  pub fn spawn(self) {
     let mut rx = self.rx;
-
     let (stop_tx, mut stop_rx) = mpsc::channel(1);
 
     // reader thread
-    tokio::spawn(async move {
-      let mut stdin = io::stdin();
-      let mut buffer = BytesMut::with_capacity(64);
+    if let Some(sink) = self.sink {
+      tokio::spawn(async move {
+        let mut stdin = io::stdin();
+        let mut buffer = BytesMut::with_capacity(64);
 
-      loop {
-        tokio::select! {
-          _ = stop_rx.recv() => {
-            break
-          }
-          b = stdin.read_u8() => {
-            match b{
-              Ok(b)=>{
-                if b == b'\n'{
-                  // send
-                  sink
-                    .send(PeerEvent::Write(buffer.freeze()))
-                    .await
-                    .expect("StdioPeer send event failed");
-                    buffer = BytesMut::with_capacity(64);
-                } else if b != b'\r'{
-                  // append
-                  if buffer.len() == buffer.capacity() {
-                    buffer.reserve(64);
+        loop {
+          tokio::select! {
+            _ = stop_rx.recv() => {
+              break
+            }
+            b = stdin.read_u8() => {
+              match b{
+                Ok(b)=>{
+                  if b == b'\n' {
+                    // send
+                    sink
+                      .send(PeerEvent::Write(buffer.freeze()))
+                      .await
+                      .expect("StdioPeer send event failed");
+                      buffer = BytesMut::with_capacity(64);
+                  } else if b != b'\r' {
+                    // append
+                    if buffer.len() == buffer.capacity() {
+                      buffer.reserve(64);
+                    }
+                    buffer.put_u8(b);
                   }
-                  buffer.put_u8(b);
                 }
-              }
-              Err(_)=>{
-                break;
+                Err(_)=>{
+                  break;
+                }
               }
             }
           }
         }
-      }
-    });
+      });
+    }
 
     // writer thread
     tokio::spawn(async move {
@@ -94,18 +81,16 @@ impl StdioPeerBuilder {
               stdout.flush().await.expect("StdioPeer flush output failed");
             }
             PeerEvent::Stop => {
-              stop_tx.send(true).await.ok();
+              stop_tx.send(()).await.ok();
               break;
             }
           },
           None => {
-            stop_tx.send(true).await.ok();
+            stop_tx.send(()).await.ok();
             break;
           }
         }
       }
     });
-
-    Ok(Peer::new(id, self.tag, self.tx))
   }
 }
