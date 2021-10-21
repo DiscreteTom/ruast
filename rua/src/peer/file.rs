@@ -27,7 +27,7 @@ impl FilePeer {
     }
   }
 
-  pub fn filename(&mut self, filename: String) -> &mut Self {
+  pub fn filename(mut self, filename: String) -> Self {
     self.filename = Some(filename);
     self
   }

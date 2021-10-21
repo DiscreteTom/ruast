@@ -12,7 +12,7 @@
 #[macro_export]
 macro_rules! impl_peer_builder {
   (sink) => {
-    pub fn sink(&mut self, sink: Sender<PeerEvent>) -> &mut Self {
+    pub fn sink(mut self, sink: Sender<PeerEvent>) -> Self {
       self.sink = Some(sink);
       self
     }
