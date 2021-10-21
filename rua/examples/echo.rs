@@ -1,18 +1,19 @@
 use rua::model::{PeerEvent, Result};
-use rua::peer::StdioPeerBuilder;
+use rua::peer::StdioPeer;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-  let stdio = {
-    let mut builder = StdioPeerBuilder::new(16);
-    let sink = builder.tx().clone();
-    builder.id(0).sink(sink); // echo to self
-    builder.build().await.unwrap()
-  };
+  // Create & run StdioPeer
+  let mut stdio = StdioPeer::new(16);
+  let tx = stdio.tx().clone();
+  stdio.sink(tx.clone()); // echo to self
+  stdio.spawn(); // run StdioPeer
 
+  // Wait for Ctrl-C
   tokio::signal::ctrl_c().await.unwrap();
 
-  stdio.tx().send(PeerEvent::Stop).await.unwrap();
+  // Stop StdioPeer
+  tx.send(PeerEvent::Stop).await.unwrap();
 
   Ok(())
 }
