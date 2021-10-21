@@ -1,4 +1,4 @@
-/// Implement `id()`, `sink()`, `tag()`, `tx()` for PeerBuilder.
+/// Implement `sink()`, `tx()` for PeerBuilder.
 ///
 /// # Examples
 ///
@@ -6,11 +6,7 @@
 /// pub struct MyPeerBuilder{};
 ///
 /// impl MyPeerBuilder {
-///   // implement id(), sink(), tag(), tx()
-///   impl_peer_builder!(all);
-///   
-///   // or implement selected methods
-///   // impl_peer_builder!(id, tag);
+///    impl_peer_builder!(sink, tx);
 /// }
 /// ```
 #[macro_export]
@@ -26,10 +22,6 @@ macro_rules! impl_peer_builder {
     pub fn tx(&self) -> &Sender<PeerEvent> {
       &self.tx
     }
-  };
-
-  (all) => {
-    impl_peer_builder!(tx,sink);
   };
 
   ($($i:ident),+)=>{
