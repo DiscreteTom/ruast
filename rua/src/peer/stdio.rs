@@ -20,6 +20,11 @@ impl StdioPeer {
     Self { tx, rx, sink: None }
   }
 
+  pub fn echo(mut self) -> Self {
+    self.sink = Some(self.tx.clone());
+    self
+  }
+
   pub fn spawn(self) -> Sender<PeerEvent> {
     let mut rx = self.rx;
     let (stop_tx, mut stop_rx) = mpsc::channel(1);
