@@ -4,15 +4,14 @@ use rua::peer::StdioPeer;
 #[tokio::main]
 pub async fn main() -> Result<()> {
   // Create & run StdioPeer
-  let mut stdio = StdioPeer::new(16);
-  stdio.sink(stdio.tx().clone()); // echo to self
-  let tx = stdio.spawn(); // run StdioPeer
+  let stdio = StdioPeer::new(16);
+  let stdio_handle = stdio.echo().spawn(); // set sink to self, then spawn
 
   // Wait for Ctrl-C
   tokio::signal::ctrl_c().await.unwrap();
 
   // Stop StdioPeer
-  tx.send(PeerEvent::Stop).await.unwrap();
+  stdio_handle.send(PeerEvent::Stop).await.unwrap();
 
   Ok(())
 }
