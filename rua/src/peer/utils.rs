@@ -15,13 +15,6 @@
 /// ```
 #[macro_export]
 macro_rules! impl_peer_builder {
-  (id) => {
-    pub fn id(&mut self, id: u32) -> &mut Self {
-      self.id = Some(id);
-      self
-    }
-  };
-
   (sink) => {
     pub fn sink(&mut self, sink: Sender<PeerEvent>) -> &mut Self {
       self.sink = Some(sink);
@@ -29,20 +22,16 @@ macro_rules! impl_peer_builder {
     }
   };
 
-  (tag) => {
-    pub fn tag(&mut self, tag: String) -> &mut Self {
-      self.tag = tag;
-      self
-    }
-  };
   (tx) => {
     pub fn tx(&self) -> &Sender<PeerEvent> {
       &self.tx
     }
   };
+
   (all) => {
-    impl_peer_builder!(id,tx,tag,sink);
+    impl_peer_builder!(tx,sink);
   };
+
   ($($i:ident),+)=>{
     $(impl_peer_builder!($i);)*
   }
