@@ -65,8 +65,13 @@ impl Broadcaster {
   pub async fn add_target(&mut self, target: Sender<PeerEvent>) {
     self.targets.lock().await.push(target);
   }
+}
 
-  pub async fn stop(self) {
-    self.stop_tx.send(()).await.ok();
+impl Drop for Broadcaster {
+  fn drop(&mut self) {
+    let stop_tx = self.stop_tx.clone();
+    tokio::spawn(async move {
+      stop_tx.send(()).await.ok();
+    });
   }
 }
