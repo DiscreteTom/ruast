@@ -5,21 +5,17 @@ use tokio::{
 
 use crate::{
   impl_peer_builder,
-  model::{Peer, PeerEvent, Result},
+  model::{PeerEvent, Result},
 };
 
-pub struct FilePeerBuilder {
-  id: Option<u32>,
-  sink: Option<Sender<PeerEvent>>,
-  tag: String,
-
+pub struct FilePeer {
   rx: Receiver<PeerEvent>,
   tx: Sender<PeerEvent>,
   filename: Option<String>,
 }
 
-impl FilePeerBuilder {
-  impl_peer_builder!(all);
+impl FilePeer {
+  impl_peer_builder!(tx);
 
   pub fn new(buffer: usize) -> Self {
     let (tx, rx) = mpsc::channel(buffer);
@@ -27,9 +23,6 @@ impl FilePeerBuilder {
     Self {
       tx,
       rx,
-      id: None,
-      sink: None,
-      tag: String::from("file"),
       filename: None,
     }
   }
@@ -39,8 +32,7 @@ impl FilePeerBuilder {
     self
   }
 
-  pub async fn build(self) -> Result<Peer> {
-    let id = self.id.ok_or("missing id when build FilePeer")?;
+  pub async fn spawn(self) -> Result<()> {
     let filename = self
       .filename
       .ok_or("missing filename when build FilePeer")?;
@@ -83,6 +75,6 @@ impl FilePeerBuilder {
       }
     });
 
-    Ok(Peer::new(id, self.tag, self.tx))
+    Ok(())
   }
 }
