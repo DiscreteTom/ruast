@@ -32,7 +32,7 @@ impl FilePeer {
     self
   }
 
-  pub async fn spawn(self) -> Result<()> {
+  pub async fn spawn(self) -> Result<Sender<PeerEvent>> {
     let filename = self
       .filename
       .ok_or("missing filename when build FilePeer")?;
@@ -75,6 +75,6 @@ impl FilePeer {
       }
     });
 
-    Ok(())
+    Ok(self.tx)
   }
 }
