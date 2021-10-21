@@ -10,20 +10,16 @@ pub async fn main() -> Result<()> {
   // Add StdioPeer to Broadcaster
   bc.add_target({
     let mut stdio = StdioPeer::new(16);
-    let tx = stdio.tx().clone();
     stdio.sink(bc.tx().clone()); // send to broadcaster
-    stdio.spawn(); // start StdioPeer
-    tx
+    stdio.spawn() // start StdioPeer
   })
   .await;
 
   // Add FilePeer to Broadcaster
   bc.add_target({
     let mut file = FilePeer::new(16);
-    let tx = file.tx().clone();
     file.filename("log.txt".to_string());
-    file.spawn().await.expect("build FilePeer failed");
-    tx
+    file.spawn().await.expect("build FilePeer failed")
   })
   .await;
 
@@ -32,9 +28,6 @@ pub async fn main() -> Result<()> {
 
   // Broadcast `PeerEvent::Stop`
   bc.tx().send(PeerEvent::Stop).await.ok();
-
-  // Stop Broadcaster
-  bc.stop().await;
 
   Ok(())
 }
