@@ -5,9 +5,8 @@ use rua::peer::StdioPeer;
 pub async fn main() -> Result<()> {
   // Create & run StdioPeer
   let mut stdio = StdioPeer::new(16);
-  let tx = stdio.tx().clone();
-  stdio.sink(tx.clone()); // echo to self
-  stdio.spawn(); // run StdioPeer
+  stdio.sink(stdio.tx().clone()); // echo to self
+  let tx = stdio.spawn(); // run StdioPeer
 
   // Wait for Ctrl-C
   tokio::signal::ctrl_c().await.unwrap();
