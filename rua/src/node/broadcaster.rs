@@ -5,7 +5,7 @@ use tokio::sync::{
   Mutex,
 };
 
-use crate::model::{Rx, Tx};
+use crate::model::{NodeEvent, Rx, Tx};
 
 pub struct Broadcaster {
   targets: Arc<Mutex<Vec<Tx>>>,
@@ -69,9 +69,11 @@ impl Broadcaster {
 
 impl Drop for Broadcaster {
   fn drop(&mut self) {
+    let tx = self.tx.clone();
     let stop_tx = self.stop_tx.clone();
     tokio::spawn(async move {
-      stop_tx.send(()).await.ok();
+      tx.send(NodeEvent::Stop).await.ok(); // stop all targets
+      stop_tx.send(()).await.ok(); // stop self
     });
   }
 }
