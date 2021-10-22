@@ -1,7 +1,7 @@
 use tokio::{io::AsyncWriteExt, sync::mpsc};
 
 use crate::{
-  impl_peer_builder,
+  impl_node,
   model::{NodeEvent, Result, Rx, Tx},
 };
 
@@ -12,7 +12,7 @@ pub struct FileNode {
 }
 
 impl FileNode {
-  impl_peer_builder!(tx);
+  impl_node!(tx);
 
   pub fn new(buffer: usize) -> Self {
     let (tx, rx) = mpsc::channel(buffer);

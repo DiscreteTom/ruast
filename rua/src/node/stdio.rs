@@ -5,7 +5,7 @@ use tokio::{
 };
 
 use crate::{
-  impl_peer_builder,
+  impl_node,
   model::{NodeEvent, Rx, Tx},
 };
 
@@ -16,7 +16,7 @@ pub struct StdioNode {
 }
 
 impl StdioNode {
-  impl_peer_builder!(tx, sink);
+  impl_node!(tx, sink);
 
   pub fn new(buffer: usize) -> Self {
     let (tx, rx) = mpsc::channel(buffer);

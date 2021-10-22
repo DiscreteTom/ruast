@@ -3,14 +3,14 @@
 /// # Examples
 ///
 /// ```
-/// pub struct MyPeerBuilder{};
+/// pub struct MyNode{};
 ///
-/// impl MyPeerBuilder {
-///    impl_peer_builder!(sink, tx);
+/// impl MyNode {
+///    impl_node!(sink, tx);
 /// }
 /// ```
 #[macro_export]
-macro_rules! impl_peer_builder {
+macro_rules! impl_node {
   (sink) => {
     pub fn sink(mut self, sink: Tx) -> Self {
       self.sink = Some(sink);
@@ -25,6 +25,6 @@ macro_rules! impl_peer_builder {
   };
 
   ($($i:ident),+)=>{
-    $(impl_peer_builder!($i);)*
+    $(impl_node!($i);)*
   }
 }
