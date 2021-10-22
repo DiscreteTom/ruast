@@ -28,15 +28,15 @@ impl Broadcaster {
               match e {
                 Some(e)=>{
                   let mut targets = targets.lock().await;
-                  let mut dead_peers: Vec<usize> = Vec::new();
+                  let mut dead_targets: Vec<usize> = Vec::new();
                   for (i, p) in targets.iter().enumerate() {
                     if let Err(_) = p.send(e.clone()).await {
-                      // this peer has been closed
-                      dead_peers.push(i);
+                      // this target has been closed
+                      dead_targets.push(i);
                     };
                   }
-                  // remove dead peers
-                  while let Some(dead) = dead_peers.pop() {
+                  // remove dead targets
+                  while let Some(dead) = dead_targets.pop() {
                     targets.remove(dead);
                   }
                 }
