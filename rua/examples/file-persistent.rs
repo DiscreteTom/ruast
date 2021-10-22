@@ -1,33 +1,36 @@
-use rua::model::{NodeEvent, Result};
-use rua::node::FileNode;
-use rua::{broadcaster::Broadcaster, node::StdioNode};
+use rua::{
+  model::Result,
+  node::{Broadcaster, FileNode, StdioNode},
+};
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-  // Create a new broadcaster
+  // create a new broadcaster
   let mut bc = Broadcaster::new(16);
 
-  // Add StdioNode to Broadcaster
+  // add StdioNode to broadcaster
   bc.add_target(
-    StdioNode::new(16).sink(bc.tx().clone()).spawn(), // start StdioNode
-  )
+    StdioNode::new(16)
+      .sink(bc.tx().clone()) // stdin => broadcaster
+      .spawn(), // spawn reader & writer, return handle
+  ) // broadcaster => stdout
   .await;
 
-  // Add FileNode to Broadcaster
+  // add FileNode to broadcaster
   bc.add_target(
     FileNode::new(16)
       .filename("log.txt".to_string())
       .spawn()
       .await
       .expect("build FileNode failed"),
-  )
+  ) // broadcaster => file
   .await;
 
-  // Wait for Ctrl-C
+  // wait for ctrl-c
   tokio::signal::ctrl_c().await.unwrap();
 
-  // Broadcast `NodeEvent::Stop`
-  bc.tx().send(NodeEvent::Stop).await.ok();
-
   Ok(())
+
+  // broadcaster will drop itself
+  // broadcaster will stop all targets before drop
 }
