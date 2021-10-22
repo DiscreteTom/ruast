@@ -1,5 +1,5 @@
 use rua::model::{PeerEvent, Result};
-use rua::peer::StdioPeer;
+use rua::node::StdioPeer;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {

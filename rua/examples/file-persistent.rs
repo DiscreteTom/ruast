@@ -1,6 +1,6 @@
 use rua::model::{PeerEvent, Result};
-use rua::peer::FilePeer;
-use rua::{broadcaster::Broadcaster, peer::StdioPeer};
+use rua::node::FilePeer;
+use rua::{broadcaster::Broadcaster, node::StdioPeer};
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
