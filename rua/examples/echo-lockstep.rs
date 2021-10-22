@@ -1,7 +1,6 @@
 use bytes::BytesMut;
-use rua::lockstep::LockstepController;
 use rua::model::{NodeEvent, Result};
-use rua::node::StdioNode;
+use rua::node::{Lc, StdioNode};
 use tokio::sync::mpsc;
 
 #[tokio::main]
@@ -9,13 +8,8 @@ pub async fn main() -> Result<()> {
   let (event_tx, mut event_rx) = mpsc::channel(16);
   let mut data = BytesMut::new();
 
-  let stdio = {
-    let mut builder = StdioNode::new(16);
-    builder.id(0).sink(event_tx);
-    builder.build().await.unwrap()
-  };
-
-  let (lockstep, mut step_rx) = LockstepController::new(1000);
+  let stdio = StdioNode::new(16).sink(event_tx).spawn();
+  let (lc, mut step_rx) = Lc::new(1000);
 
   loop {
     tokio::select! {
@@ -34,9 +28,9 @@ pub async fn main() -> Result<()> {
           None => break,
           Some(step) => {
             let mut result = BytesMut::new();
-            result.extend_from_slice(&(step.to_string()+":\n").into_bytes());
+            result.extend_from_slice(&(step.to_string() + ":\n").into_bytes());
             result.extend_from_slice(&data.freeze());
-            stdio.tx().send(NodeEvent::Write(result.freeze())).await.unwrap();
+            stdio.send(NodeEvent::Write(result.freeze())).await.unwrap();
             data = BytesMut::new();
           }
         }
@@ -47,8 +41,8 @@ pub async fn main() -> Result<()> {
     }
   }
 
-  stdio.tx().send(NodeEvent::Stop).await.unwrap();
-  lockstep.stop().await;
+  stdio.send(NodeEvent::Stop).await.unwrap();
+  lc.stop().await;
 
   Ok(())
 }
