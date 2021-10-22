@@ -7,6 +7,44 @@ use tokio::{
   time,
 };
 
+/// Lockstep controller.
+pub struct Lc {
+  stop_tx: Sender<()>,
+}
+
+impl Lc {
+  pub fn new(step_length_ms: u64) -> (Self, Receiver<u64>) {
+    let (tx, rx) = mpsc::channel(1);
+
+    (Self::with_tx(tx, step_length_ms), rx)
+  }
+
+  pub fn with_tx(tx: Sender<u64>, step_length_ms: u64) -> Self {
+    let (stop_tx, mut stop_rx) = mpsc::channel(1);
+
+    tokio::spawn(async move {
+      let mut current = 0;
+      loop {
+        tokio::select! {
+          _ = stop_rx.recv() => {
+            break
+          }
+          _ = time::sleep(Duration::from_millis(step_length_ms)) => {
+            tx.send(current).await.expect("lockstep controller send failed");
+            current += 1;
+          }
+        }
+      }
+    });
+
+    Self { stop_tx }
+  }
+
+  pub async fn stop(self) {
+    self.stop_tx.send(()).await.ok();
+  }
+}
+
 /// Dynamic lockstep controller.
 /// Use `set_step_length` to change the step length.
 pub struct Dlc {
@@ -35,7 +73,7 @@ impl Dlc {
               break
             }
             _ = time::sleep(Duration::from_millis(*step_length.lock().await)) => {
-              tx.send(current).await.expect("lockstep controller send failed");
+              tx.send(current).await.expect("dynamic lockstep controller send failed");
               current += 1;
             }
           }
