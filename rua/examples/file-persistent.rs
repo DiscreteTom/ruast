@@ -1,6 +1,6 @@
 use rua::{
   model::Result,
-  node::{Broadcaster, FileNode, StdioNode},
+  node::{ctrlc::Ctrlc, Broadcaster, FileNode, StdioNode},
 };
 
 #[tokio::main]
@@ -26,11 +26,10 @@ pub async fn main() -> Result<()> {
   ) // broadcaster => file
   .await;
 
-  // wait for ctrl-c
-  tokio::signal::ctrl_c().await.unwrap();
+  // wait for ctrl-c, then broadcast NodeEvent::Stop
+  Ctrlc::new().sink(bc.tx().clone()).wait().await;
 
   Ok(())
 
   // broadcaster will drop itself
-  // broadcaster will stop all targets before drop
 }

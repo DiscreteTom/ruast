@@ -1,20 +1,17 @@
 use rua::{
-  model::{NodeEvent, Result},
-  node::StdioNode,
+  model::Result,
+  node::{ctrlc::Ctrlc, StdioNode},
 };
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
   // create & run StdioNode
-  let handle = StdioNode::new(16)
+  let stdio = StdioNode::new(16)
     .echo() // set sink to self
-    .spawn(); // spawn reader & writer, return handle
+    .spawn(); // spawn reader & writer, return tx for StdioNode
 
-  // wait for ctrl-c
-  tokio::signal::ctrl_c().await.unwrap();
-
-  // stop node
-  handle.send(NodeEvent::Stop).await.ok();
+  // wait for ctrl-c, then stop node
+  Ctrlc::new().sink(stdio).wait().await;
 
   Ok(())
 }
