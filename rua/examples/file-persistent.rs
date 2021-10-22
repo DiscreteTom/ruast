@@ -1,4 +1,4 @@
-use rua::model::{PeerEvent, Result};
+use rua::model::{NodeEvent, Result};
 use rua::node::FilePeer;
 use rua::{broadcaster::Broadcaster, node::StdioPeer};
 
@@ -26,8 +26,8 @@ pub async fn main() -> Result<()> {
   // Wait for Ctrl-C
   tokio::signal::ctrl_c().await.unwrap();
 
-  // Broadcast `PeerEvent::Stop`
-  bc.tx().send(PeerEvent::Stop).await.ok();
+  // Broadcast `NodeEvent::Stop`
+  bc.tx().send(NodeEvent::Stop).await.ok();
 
   Ok(())
 }

@@ -1,4 +1,4 @@
-use rua::model::{PeerEvent, Result};
+use rua::model::{NodeEvent, Result};
 use rua::node::StdioPeer;
 
 #[tokio::main]
@@ -11,7 +11,7 @@ pub async fn main() -> Result<()> {
   tokio::signal::ctrl_c().await.unwrap();
 
   // Stop StdioPeer
-  stdio_handle.send(PeerEvent::Stop).await.unwrap();
+  stdio_handle.send(NodeEvent::Stop).await.unwrap();
 
   Ok(())
 }

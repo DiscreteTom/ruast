@@ -4,12 +4,12 @@ use tokio::{
   sync::mpsc::{self, Receiver, Sender},
 };
 
-use crate::{impl_peer_builder, model::PeerEvent};
+use crate::{impl_peer_builder, model::NodeEvent};
 
 pub struct StdioPeer {
-  sink: Option<Sender<PeerEvent>>,
-  rx: Receiver<PeerEvent>,
-  tx: Sender<PeerEvent>,
+  sink: Option<Sender<NodeEvent>>,
+  rx: Receiver<NodeEvent>,
+  tx: Sender<NodeEvent>,
 }
 
 impl StdioPeer {
@@ -25,7 +25,7 @@ impl StdioPeer {
     self
   }
 
-  pub fn spawn(self) -> Sender<PeerEvent> {
+  pub fn spawn(self) -> Sender<NodeEvent> {
     let mut rx = self.rx;
     let (stop_tx, mut stop_rx) = mpsc::channel(1);
 
@@ -46,7 +46,7 @@ impl StdioPeer {
                   if b == b'\n' {
                     // send
                     sink
-                      .send(PeerEvent::Write(buffer.freeze()))
+                      .send(NodeEvent::Write(buffer.freeze()))
                       .await
                       .expect("StdioPeer send event failed");
                       buffer = BytesMut::with_capacity(64);
@@ -74,7 +74,7 @@ impl StdioPeer {
       loop {
         match rx.recv().await {
           Some(e) => match e {
-            PeerEvent::Write(data) => {
+            NodeEvent::Write(data) => {
               stdout
                 .write_all(&data)
                 .await
@@ -85,7 +85,7 @@ impl StdioPeer {
                 .expect("StdioPeer write \\n failed");
               stdout.flush().await.expect("StdioPeer flush output failed");
             }
-            PeerEvent::Stop => {
+            NodeEvent::Stop => {
               stop_tx.send(()).await.ok();
               break;
             }

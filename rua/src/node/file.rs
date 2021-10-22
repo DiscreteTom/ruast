@@ -5,12 +5,12 @@ use tokio::{
 
 use crate::{
   impl_peer_builder,
-  model::{PeerEvent, Result},
+  model::{NodeEvent, Result},
 };
 
 pub struct FilePeer {
-  rx: Receiver<PeerEvent>,
-  tx: Sender<PeerEvent>,
+  rx: Receiver<NodeEvent>,
+  tx: Sender<NodeEvent>,
   filename: Option<String>,
 }
 
@@ -32,7 +32,7 @@ impl FilePeer {
     self
   }
 
-  pub async fn spawn(self) -> Result<Sender<PeerEvent>> {
+  pub async fn spawn(self) -> Result<Sender<NodeEvent>> {
     let filename = self
       .filename
       .ok_or("missing filename when build FilePeer")?;
@@ -50,7 +50,7 @@ impl FilePeer {
       loop {
         match rx.recv().await {
           Some(e) => match e {
-            PeerEvent::Write(data) => {
+            NodeEvent::Write(data) => {
               file
                 .write_all(&data)
                 .await
@@ -64,7 +64,7 @@ impl FilePeer {
                 .await
                 .expect("FilePeer flush output failed");
             }
-            PeerEvent::Stop => {
+            NodeEvent::Stop => {
               break;
             }
           },

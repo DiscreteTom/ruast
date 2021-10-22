@@ -3,7 +3,7 @@ use bytes::Bytes;
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[derive(Debug, Clone)]
-pub enum PeerEvent {
+pub enum NodeEvent {
   Write(Bytes),
   Stop,
 }
