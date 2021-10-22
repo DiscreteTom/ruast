@@ -14,8 +14,13 @@ pub struct LockstepController {
 
 impl LockstepController {
   pub fn new(step_length_ms: u64) -> (Self, Receiver<u64>) {
-    let (stop_tx, mut stop_rx) = mpsc::channel(1);
     let (tx, rx) = mpsc::channel(1);
+
+    (Self::with_tx(tx, step_length_ms), rx)
+  }
+
+  pub fn with_tx(tx: Sender<u64>, step_length_ms: u64) -> Self {
+    let (stop_tx, mut stop_rx) = mpsc::channel(1);
     let step_length = Arc::new(Mutex::new(step_length_ms));
 
     {
@@ -36,13 +41,10 @@ impl LockstepController {
       });
     }
 
-    (
-      Self {
-        step_length,
-        stop_tx,
-      },
-      rx,
-    )
+    Self {
+      step_length,
+      stop_tx,
+    }
   }
 
   pub async fn set_step_length(&mut self, step_length: u64) {
