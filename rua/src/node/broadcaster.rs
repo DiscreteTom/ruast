@@ -11,6 +11,7 @@ pub struct Broadcaster {
   targets: Arc<Mutex<Vec<Tx>>>,
   tx: Tx,
   stop_tx: Sender<()>,
+  stop_targets_on_drop: bool,
 }
 
 impl Broadcaster {
@@ -55,7 +56,12 @@ impl Broadcaster {
       tx,
       stop_tx,
       targets,
+      stop_targets_on_drop: false,
     }
+  }
+
+  pub fn stop_targets_on_drop(&mut self, enable: bool) {
+    self.stop_targets_on_drop = enable;
   }
 
   pub fn tx(&self) -> &Tx {
@@ -69,11 +75,16 @@ impl Broadcaster {
 
 impl Drop for Broadcaster {
   fn drop(&mut self) {
-    let tx = self.tx.clone();
     let stop_tx = self.stop_tx.clone();
     tokio::spawn(async move {
-      tx.send(NodeEvent::Stop).await.ok(); // stop all targets
       stop_tx.send(()).await.ok(); // stop self
     });
+
+    if self.stop_targets_on_drop {
+      let tx = self.tx.clone();
+      tokio::spawn(async move {
+        tx.send(NodeEvent::Stop).await.ok(); // stop all targets
+      });
+    }
   }
 }
