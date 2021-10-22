@@ -6,13 +6,13 @@ use tokio::{
 
 use crate::{impl_peer_builder, model::NodeEvent};
 
-pub struct StdioPeer {
+pub struct StdioNode {
   sink: Option<Sender<NodeEvent>>,
   rx: Receiver<NodeEvent>,
   tx: Sender<NodeEvent>,
 }
 
-impl StdioPeer {
+impl StdioNode {
   impl_peer_builder!(tx, sink);
 
   pub fn new(buffer: usize) -> Self {
@@ -48,7 +48,7 @@ impl StdioPeer {
                     sink
                       .send(NodeEvent::Write(buffer.freeze()))
                       .await
-                      .expect("StdioPeer send event failed");
+                      .expect("StdioNode send event failed");
                       buffer = BytesMut::with_capacity(64);
                   } else if b != b'\r' {
                     // append
@@ -78,12 +78,12 @@ impl StdioPeer {
               stdout
                 .write_all(&data)
                 .await
-                .expect("StdioPeer write data failed");
+                .expect("StdioNode write data failed");
               stdout
                 .write_all(b"\n")
                 .await
-                .expect("StdioPeer write \\n failed");
-              stdout.flush().await.expect("StdioPeer flush output failed");
+                .expect("StdioNode write \\n failed");
+              stdout.flush().await.expect("StdioNode flush output failed");
             }
             NodeEvent::Stop => {
               stop_tx.send(()).await.ok();

@@ -8,13 +8,13 @@ use crate::{
   model::{NodeEvent, Result},
 };
 
-pub struct FilePeer {
+pub struct FileNode {
   rx: Receiver<NodeEvent>,
   tx: Sender<NodeEvent>,
   filename: Option<String>,
 }
 
-impl FilePeer {
+impl FileNode {
   impl_peer_builder!(tx);
 
   pub fn new(buffer: usize) -> Self {
@@ -35,7 +35,7 @@ impl FilePeer {
   pub async fn spawn(self) -> Result<Sender<NodeEvent>> {
     let filename = self
       .filename
-      .ok_or("missing filename when build FilePeer")?;
+      .ok_or("missing filename when build FileNode")?;
 
     let mut file = tokio::fs::OpenOptions::new()
       .create(true)
@@ -54,15 +54,15 @@ impl FilePeer {
               file
                 .write_all(&data)
                 .await
-                .expect("FilePeer write data failed");
+                .expect("FileNode write data failed");
               file
                 .write_all(b"\n")
                 .await
-                .expect("FilePeer write \\n failed");
+                .expect("FileNode write \\n failed");
               file
                 .sync_data()
                 .await
-                .expect("FilePeer flush output failed");
+                .expect("FileNode flush output failed");
             }
             NodeEvent::Stop => {
               break;

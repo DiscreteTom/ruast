@@ -1,7 +1,7 @@
 use bytes::BytesMut;
 use rua::lockstep::LockstepController;
-use rua::model::{PeerEvent, Result};
-use rua::peer::StdioPeerBuilder;
+use rua::model::{NodeEvent, Result};
+use rua::node::StdioNode;
 use tokio::sync::mpsc;
 
 #[tokio::main]
@@ -10,7 +10,7 @@ pub async fn main() -> Result<()> {
   let mut data = BytesMut::new();
 
   let stdio = {
-    let mut builder = StdioPeerBuilder::new(16);
+    let mut builder = StdioNode::new(16);
     builder.id(0).sink(event_tx);
     builder.build().await.unwrap()
   };
@@ -23,7 +23,7 @@ pub async fn main() -> Result<()> {
         match e {
           None => break,
           Some(e) => {
-            if let PeerEvent::Write(msg) = e {
+            if let NodeEvent::Write(msg) = e {
               data.extend_from_slice(&msg[..]);
             }
           }
@@ -36,7 +36,7 @@ pub async fn main() -> Result<()> {
             let mut result = BytesMut::new();
             result.extend_from_slice(&(step.to_string()+":\n").into_bytes());
             result.extend_from_slice(&data.freeze());
-            stdio.tx().send(PeerEvent::Write(result.freeze())).await.unwrap();
+            stdio.tx().send(NodeEvent::Write(result.freeze())).await.unwrap();
             data = BytesMut::new();
           }
         }
@@ -47,7 +47,7 @@ pub async fn main() -> Result<()> {
     }
   }
 
-  stdio.tx().send(PeerEvent::Stop).await.unwrap();
+  stdio.tx().send(NodeEvent::Stop).await.unwrap();
   lockstep.stop().await;
 
   Ok(())

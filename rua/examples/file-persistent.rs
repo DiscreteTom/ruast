@@ -1,25 +1,25 @@
 use rua::model::{NodeEvent, Result};
-use rua::node::FilePeer;
-use rua::{broadcaster::Broadcaster, node::StdioPeer};
+use rua::node::FileNode;
+use rua::{broadcaster::Broadcaster, node::StdioNode};
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
   // Create a new broadcaster
   let mut bc = Broadcaster::new(16);
 
-  // Add StdioPeer to Broadcaster
+  // Add StdioNode to Broadcaster
   bc.add_target(
-    StdioPeer::new(16).sink(bc.tx().clone()).spawn(), // start StdioPeer
+    StdioNode::new(16).sink(bc.tx().clone()).spawn(), // start StdioNode
   )
   .await;
 
-  // Add FilePeer to Broadcaster
+  // Add FileNode to Broadcaster
   bc.add_target(
-    FilePeer::new(16)
+    FileNode::new(16)
       .filename("log.txt".to_string())
       .spawn()
       .await
-      .expect("build FilePeer failed"),
+      .expect("build FileNode failed"),
   )
   .await;
 
