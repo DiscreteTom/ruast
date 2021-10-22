@@ -1,23 +1,23 @@
 use std::sync::Arc;
 
 use tokio::sync::{
-  mpsc::{self, Receiver, Sender},
+  mpsc::{self, Sender},
   Mutex,
 };
 
-use crate::model::NodeEvent;
+use crate::model::{Rx, Tx};
 
 pub struct Broadcaster {
-  targets: Arc<Mutex<Vec<Sender<NodeEvent>>>>,
-  tx: Sender<NodeEvent>,
+  targets: Arc<Mutex<Vec<Tx>>>,
+  tx: Tx,
   stop_tx: Sender<()>,
 }
 
 impl Broadcaster {
   pub fn new(buffer: usize) -> Self {
-    let (tx, mut rx): (Sender<NodeEvent>, Receiver<NodeEvent>) = mpsc::channel(buffer);
+    let (tx, mut rx): (Tx, Rx) = mpsc::channel(buffer);
     let (stop_tx, mut stop_rx) = mpsc::channel(1);
-    let targets: Arc<Mutex<Vec<Sender<NodeEvent>>>> = Arc::new(Mutex::new(Vec::new()));
+    let targets: Arc<Mutex<Vec<Tx>>> = Arc::new(Mutex::new(Vec::new()));
 
     {
       let targets = targets.clone();
@@ -58,11 +58,11 @@ impl Broadcaster {
     }
   }
 
-  pub fn tx(&self) -> &Sender<NodeEvent> {
+  pub fn tx(&self) -> &Tx {
     &self.tx
   }
 
-  pub async fn add_target(&mut self, target: Sender<NodeEvent>) {
+  pub async fn add_target(&mut self, target: Tx) {
     self.targets.lock().await.push(target);
   }
 }

@@ -1,15 +1,18 @@
 use bytes::{BufMut, BytesMut};
 use tokio::{
   io::{self, AsyncReadExt, AsyncWriteExt},
-  sync::mpsc::{self, Receiver, Sender},
+  sync::mpsc,
 };
 
-use crate::{impl_peer_builder, model::NodeEvent};
+use crate::{
+  impl_peer_builder,
+  model::{NodeEvent, Rx, Tx},
+};
 
 pub struct StdioNode {
-  sink: Option<Sender<NodeEvent>>,
-  rx: Receiver<NodeEvent>,
-  tx: Sender<NodeEvent>,
+  sink: Option<Tx>,
+  rx: Rx,
+  tx: Tx,
 }
 
 impl StdioNode {
@@ -25,7 +28,7 @@ impl StdioNode {
     self
   }
 
-  pub fn spawn(self) -> Sender<NodeEvent> {
+  pub fn spawn(self) -> Tx {
     let mut rx = self.rx;
     let (stop_tx, mut stop_rx) = mpsc::channel(1);
 

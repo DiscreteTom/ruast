@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -7,6 +8,9 @@ pub enum NodeEvent {
   Write(Bytes),
   Stop,
 }
+
+pub type Tx = Sender<NodeEvent>;
+pub type Rx = Receiver<NodeEvent>;
 
 // #[async_trait]
 // pub trait PeerBuilder {

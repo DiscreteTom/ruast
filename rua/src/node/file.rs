@@ -1,16 +1,13 @@
-use tokio::{
-  io::AsyncWriteExt,
-  sync::mpsc::{self, Receiver, Sender},
-};
+use tokio::{io::AsyncWriteExt, sync::mpsc};
 
 use crate::{
   impl_peer_builder,
-  model::{NodeEvent, Result},
+  model::{NodeEvent, Result, Rx, Tx},
 };
 
 pub struct FileNode {
-  rx: Receiver<NodeEvent>,
-  tx: Sender<NodeEvent>,
+  rx: Rx,
+  tx: Tx,
   filename: Option<String>,
 }
 
@@ -32,7 +29,7 @@ impl FileNode {
     self
   }
 
-  pub async fn spawn(self) -> Result<Sender<NodeEvent>> {
+  pub async fn spawn(self) -> Result<Tx> {
     let filename = self
       .filename
       .ok_or("missing filename when build FileNode")?;
