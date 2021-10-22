@@ -7,12 +7,14 @@ use tokio::{
   time,
 };
 
-pub struct LockstepController {
+/// Dynamic lockstep controller.
+/// Use `set_step_length` to change the step length.
+pub struct Dlc {
   step_length: Arc<Mutex<u64>>, // in ms
   stop_tx: Sender<()>,
 }
 
-impl LockstepController {
+impl Dlc {
   pub fn new(step_length_ms: u64) -> (Self, Receiver<u64>) {
     let (tx, rx) = mpsc::channel(1);
 
