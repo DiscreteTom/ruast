@@ -1,6 +1,6 @@
 use rua::{
   model::Result,
-  node::{ctrlc::Ctrlc, Broadcaster, StdioNode},
+  node::{ctrlc::Ctrlc, Bc, StdioNode},
 };
 use rua_random::RandomNode;
 
@@ -15,7 +15,7 @@ pub async fn main() -> Result<()> {
     .spawn()
     .unwrap();
 
-  let mut bc = Broadcaster::new(16);
+  let mut bc = Bc::new(16);
   bc.add_target(stdio).await;
   bc.add_target(random).await;
 

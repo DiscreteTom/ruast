@@ -1,6 +1,6 @@
-pub mod broadcaster;
+pub mod broadcast;
 pub mod ctrlc;
-pub use broadcaster::Broadcaster;
+pub use broadcast::Bc;
 pub use ctrlc::Ctrlc;
 pub mod file;
 pub use file::FileNode;

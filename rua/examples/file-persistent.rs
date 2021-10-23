@@ -1,12 +1,12 @@
 use rua::{
   model::Result,
-  node::{ctrlc::Ctrlc, Broadcaster, FileNode, StdioNode},
+  node::{ctrlc::Ctrlc, Bc, FileNode, StdioNode},
 };
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
   // create a new broadcaster
-  let mut bc = Broadcaster::new(16);
+  let mut bc = Bc::new(16);
 
   // add StdioNode to broadcaster
   bc.add_target(

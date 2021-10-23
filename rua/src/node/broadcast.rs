@@ -7,14 +7,17 @@ use tokio::sync::{
 
 use crate::model::{NodeEvent, Rx, Tx};
 
-pub struct Broadcaster {
+/// Broadcaster.
+/// You can add targets to the broadcaster dynamically by calling `add_target`.
+/// Broadcaster will automatically remove dead targets from itself.
+pub struct Bc {
   targets: Arc<Mutex<Vec<Tx>>>,
   tx: Tx,
   stop_tx: Sender<()>,
   stop_targets_on_drop: bool,
 }
 
-impl Broadcaster {
+impl Bc {
   pub fn new(buffer: usize) -> Self {
     let (tx, mut rx): (Tx, Rx) = mpsc::channel(buffer);
     let (stop_tx, mut stop_rx) = mpsc::channel(1);
@@ -73,7 +76,7 @@ impl Broadcaster {
   }
 }
 
-impl Drop for Broadcaster {
+impl Drop for Bc {
   fn drop(&mut self) {
     let stop_tx = self.stop_tx.clone();
     tokio::spawn(async move {
