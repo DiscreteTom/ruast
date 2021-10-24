@@ -11,31 +11,11 @@ pub fn reader_node_derive(input: TokenStream) -> TokenStream {
 
   let gen = quote! {
     impl ReaderNode for #name {
-      fn brx(&self) -> Brx {
-        self.btx.subscribe()
-      }
+      impl_node!(brx);
     }
 
     impl #name {
-      /// self.btx => other.tx
-      pub fn publish(self, other: &impl WriterNode) -> Self {
-        let mut brx = self.brx();
-        let tx = other.tx().clone();
-
-        tokio::spawn(async move {
-          loop {
-            match brx.recv().await {
-              Ok(e) => {
-                if tx.send(e).await.is_err() {
-                  break;
-                }
-              }
-              Err(_) => break,
-            }
-          }
-        });
-        self
-      }
+      impl_node!(publish);
     }
   };
   gen.into()
@@ -48,31 +28,11 @@ pub fn writer_node_derive(input: TokenStream) -> TokenStream {
 
   let gen = quote! {
     impl WriterNode for #name {
-      fn tx(&self) -> &Tx {
-        &self.tx
-      }
+      impl_node!(tx);
     }
 
     impl #name {
-      /// other.btx => self.tx
-      pub fn subscribe(self, other: &impl ReaderNode) -> Self {
-        let mut brx = other.brx();
-        let tx = self.tx().clone();
-
-        tokio::spawn(async move {
-          loop {
-            match brx.recv().await {
-              Ok(e) => {
-                if tx.send(e).await.is_err() {
-                  break;
-                }
-              }
-              Err(_) => break,
-            }
-          }
-        });
-        self
-      }
+      impl_node!(subscribe);
     }
   };
   gen.into()

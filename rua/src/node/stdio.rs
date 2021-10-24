@@ -1,13 +1,12 @@
+use super::mock::{MockNode, MockWriterNode};
+use crate::impl_node;
+use crate::model::{Brx, Btx, NodeEvent, ReaderNode, Rx, Tx, WriterNode};
 use bytes::{BufMut, BytesMut};
 use rua_macro::{ReaderNode, WriterNode};
 use tokio::{
   io::{self, AsyncReadExt, AsyncWriteExt},
   sync::{broadcast, mpsc},
 };
-
-use crate::model::{Brx, Btx, NodeEvent, ReaderNode, Rx, Tx, WriterNode};
-
-use super::mock::{MockNode, MockWriterNode};
 
 #[derive(ReaderNode, WriterNode)]
 pub struct StdioNode {

@@ -1,9 +1,8 @@
+use super::mock::MockReaderNode;
+use crate::impl_node;
+use crate::model::{Brx, Btx, NodeEvent, ReaderNode, WriterNode};
 use rua_macro::ReaderNode;
 use tokio::sync::broadcast::channel;
-
-use crate::model::{Brx, Btx, NodeEvent, ReaderNode, WriterNode};
-
-use super::mock::MockReaderNode;
 
 /// Ctrl-C handler.
 ///

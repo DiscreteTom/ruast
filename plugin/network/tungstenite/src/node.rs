@@ -1,6 +1,7 @@
 use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
 use rua::{
+  impl_node,
   model::{Brx, Btx, NodeEvent, ReaderNode, Rx, Tx, WriterNode},
   node::MockNode,
 };

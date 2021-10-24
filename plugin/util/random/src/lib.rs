@@ -1,6 +1,7 @@
 use bytes::Bytes;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+use rua::impl_node;
 use rua::model::{Brx, Btx, NodeEvent, ReaderNode, WriterNode};
 use rua::node::MockReaderNode;
 use rua_macro::ReaderNode;

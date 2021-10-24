@@ -1,8 +1,8 @@
+use super::mock::MockWriterNode;
+use crate::impl_node;
 use crate::model::{NodeEvent, ReaderNode, Result, Rx, Tx, WriterNode};
 use rua_macro::WriterNode;
 use tokio::{io::AsyncWriteExt, sync::mpsc};
-
-use super::mock::MockWriterNode;
 
 #[derive(WriterNode)]
 pub struct FileNode {

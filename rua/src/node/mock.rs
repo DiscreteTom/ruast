@@ -1,3 +1,4 @@
+use crate::impl_node;
 use crate::model::{Brx, Btx, ReaderNode, Tx, WriterNode};
 use rua_macro::{ReaderNode, WriterNode};
 

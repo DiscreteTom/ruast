@@ -1,13 +1,12 @@
+use super::mock::MockNode;
+use crate::impl_node;
+use crate::model::{Brx, Btx, NodeEvent, ReaderNode, Result, Rx, Tx, WriterNode};
 use bytes::Bytes;
 use std::time::Duration;
 use tokio::{
   sync::{broadcast, mpsc},
   time::{self, Instant},
 };
-
-use crate::model::{Brx, Btx, NodeEvent, ReaderNode, Result, Rx, Tx, WriterNode};
-
-use super::mock::MockNode;
 
 /// Lockstep node.
 pub struct LsNode<State: Send + 'static> {
@@ -22,18 +21,16 @@ pub struct LsNode<State: Send + 'static> {
 }
 
 impl<State: Send + 'static> ReaderNode for LsNode<State> {
-  fn brx(&self) -> Brx {
-    self.btx.subscribe()
-  }
+  impl_node!(brx);
 }
 
 impl<State: Send + 'static> WriterNode for LsNode<State> {
-  fn tx(&self) -> &Tx {
-    &self.tx
-  }
+  impl_node!(tx);
 }
 
 impl<State: Send + 'static> LsNode<State> {
+  impl_node!(publish, subscribe);
+
   pub fn new(step_length_ms: u64, state: State, write_buffer: usize, read_buffer: usize) -> Self {
     let (tx, rx) = mpsc::channel(write_buffer);
     let (btx, _) = broadcast::channel(read_buffer);
@@ -66,46 +63,6 @@ impl<State: Send + 'static> LsNode<State> {
 
   pub fn on_step(mut self, f: impl Fn(u64, &mut State) -> Bytes + 'static + Send) -> Self {
     self.step_handler = Some(Box::new(f));
-    self
-  }
-
-  /// self.btx => other.tx
-  pub fn publish(self, other: &impl WriterNode) -> Self {
-    let mut brx = self.brx();
-    let tx = other.tx().clone();
-
-    tokio::spawn(async move {
-      loop {
-        match brx.recv().await {
-          Ok(e) => {
-            if tx.send(e).await.is_err() {
-              break;
-            }
-          }
-          Err(_) => break,
-        }
-      }
-    });
-    self
-  }
-
-  /// other.btx => self.tx
-  pub fn subscribe(self, other: &impl ReaderNode) -> Self {
-    let mut brx = other.brx();
-    let tx = self.tx().clone();
-
-    tokio::spawn(async move {
-      loop {
-        match brx.recv().await {
-          Ok(e) => {
-            if tx.send(e).await.is_err() {
-              break;
-            }
-          }
-          Err(_) => break,
-        }
-      }
-    });
     self
   }
 
