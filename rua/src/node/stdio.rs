@@ -1,75 +1,92 @@
 use bytes::{BufMut, BytesMut};
 use tokio::{
   io::{self, AsyncReadExt, AsyncWriteExt},
-  sync::mpsc,
+  sync::{broadcast, mpsc},
 };
 
-use crate::{
-  impl_node,
-  model::{NodeEvent, Rx, Tx},
-};
+use crate::model::{Btx, NodeEvent, Rx, Tx};
 
 pub struct StdioNode {
-  sink: Option<Tx>,
   rx: Rx,
   tx: Tx,
+  btx: Btx,
 }
 
 impl StdioNode {
-  impl_node!(tx, sink);
-
-  pub fn new(buffer: usize) -> Self {
-    let (tx, rx) = mpsc::channel(buffer);
-    Self { tx, rx, sink: None }
+  pub fn new(in_buffer: usize, out_buffer: usize) -> Self {
+    let (tx, rx) = mpsc::channel(in_buffer);
+    let (btx, _) = broadcast::channel(out_buffer);
+    Self { tx, rx, btx }
   }
 
-  pub fn echo(mut self) -> Self {
-    self.sink = Some(self.tx.clone());
+  pub fn default() -> Self {
+    Self::new(16, 16)
+  }
+
+  pub fn subscribe(self, btx: &Btx) -> Self {
+    let mut brx = btx.subscribe();
+    let tx = self.tx.clone();
+    tokio::spawn(async move {
+      loop {
+        match brx.recv().await {
+          Ok(e) => {
+            if tx.send(e).await.is_err() {
+              break;
+            }
+          }
+          Err(_) => break,
+        }
+      }
+    });
     self
   }
 
-  pub fn spawn(self) -> Tx {
+  pub fn echo(self) -> Self {
+    let btx = self.btx.clone();
+    self.subscribe(&btx)
+  }
+
+  pub fn spawn(self) -> Btx {
+    let tx = self.tx;
     let mut rx = self.rx;
     let (stop_tx, mut stop_rx) = mpsc::channel(1);
 
     // reader thread
-    if let Some(sink) = self.sink {
-      tokio::spawn(async move {
-        let mut stdin = io::stdin();
-        let mut buffer = BytesMut::with_capacity(64);
+    tokio::spawn(async move {
+      let mut stdin = io::stdin();
+      let mut buffer = BytesMut::with_capacity(64);
 
-        loop {
-          tokio::select! {
-            _ = stop_rx.recv() => {
-              break
-            }
-            b = stdin.read_u8() => {
-              match b{
-                Ok(b)=>{
-                  if b == b'\n' {
-                    // send
-                    sink
-                      .send(NodeEvent::Write(buffer.freeze()))
-                      .await
-                      .expect("StdioNode send event failed");
-                      buffer = BytesMut::with_capacity(64);
-                  } else if b != b'\r' {
-                    // append
-                    if buffer.len() == buffer.capacity() {
-                      buffer.reserve(64);
-                    }
-                    buffer.put_u8(b);
+      loop {
+        tokio::select! {
+          _ = stop_rx.recv() => {
+            break
+          }
+          b = stdin.read_u8() => {
+            match b{
+              Ok(b)=>{
+                if b == b'\n' {
+                  // send
+                  tx.send(NodeEvent::Write(buffer.freeze()))
+                    .await
+                    .expect("StdioNode send event failed");
+                  // reset buffer
+                  buffer = BytesMut::with_capacity(64);
+                } else if b != b'\r' {
+                  // append
+                  if buffer.len() == buffer.capacity() {
+                    buffer.reserve(64);
                   }
+                  buffer.put_u8(b);
                 }
-                Err(_)=>{
-                  break;
-                }
+              }
+              Err(_)=>{
+                break;
               }
             }
           }
         }
-      });
-    }
+      }
+    });
 
     // writer thread
     tokio::spawn(async move {
@@ -96,6 +113,6 @@ impl StdioNode {
       stop_tx.send(()).await.ok();
     });
 
-    self.tx
+    self.btx
   }
 }
