@@ -41,6 +41,23 @@ impl StdioNode {
     self
   }
 
+  pub fn publish(self, btx: Btx) -> Self {
+    let brx = self.btx().subscribe();
+    tokio::spawn(async move {
+      loop {
+        match brx.recv().await {
+          Ok(e) => {
+            if btx.send(e).is_err() {
+              break;
+            }
+          }
+          Err(_) => break,
+        }
+      }
+    });
+    self
+  }
+
   pub fn btx(&self) -> &Btx {
     &self.btx
   }
