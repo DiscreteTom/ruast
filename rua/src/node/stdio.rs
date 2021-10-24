@@ -88,17 +88,12 @@ impl StdioNode {
                 .expect("StdioNode write \\n failed");
               stdout.flush().await.expect("StdioNode flush output failed");
             }
-            NodeEvent::Stop => {
-              stop_tx.send(()).await.ok();
-              break;
-            }
+            NodeEvent::Stop => break,
           },
-          None => {
-            stop_tx.send(()).await.ok();
-            break;
-          }
+          None => break,
         }
       }
+      stop_tx.send(()).await.ok();
     });
 
     self.tx
