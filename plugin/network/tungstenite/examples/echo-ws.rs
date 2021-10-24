@@ -1,58 +1,37 @@
-use rua::{
-  controller::PeerManager,
-  model::{PeerBuilder, Result, ServerEvent},
-  peer::StdioPeerBuilder,
-};
-use rua_tungstenite::listener::WebsocketListener;
-use tokio::sync::mpsc;
+use rua::model::Result;
+use rua::node::{Bc, Ctrlc, StdioNode};
+use rua_tungstenite::listener::WsListener;
 
 const WS_LISTENER_ADDR: &str = "127.0.0.1:8080";
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-  let mut current_peer_id = 0;
+  let mut bc = Bc::new(16);
 
-  let mut h = PeerManager::new();
-  let (tx, mut rx) = mpsc::channel(256);
+  bc.add_target(
+    StdioNode::new(16)
+      .sink(bc.tx().clone()) // stdin => broadcaster
+      .spawn(),
+  ) // broadcaster => stdout
+  .await;
 
-  h.add_peer(
-    StdioPeerBuilder::new()
-      .id(current_peer_id)
-      .server_tx(tx.clone())
-      .build()
-      .await?,
-  )?;
-  current_peer_id += 1;
+  Ctrlc::new().sink(bc.tx().clone());
 
-  let ws_listener_code = 0;
-  let (ws_listener, mut ws_peer_rx) =
-    WebsocketListener::new(WS_LISTENER_ADDR, ws_listener_code, tx.clone(), 256);
-  tokio::spawn(async move { ws_listener.start().await });
+  let mut peer_rx = WsListener::new(WS_LISTENER_ADDR, 16, 16).spawn().await?;
 
   println!("WebSocket listener is running at ws://{}", WS_LISTENER_ADDR);
 
   loop {
-    match rx.recv().await.unwrap() {
-      ServerEvent::PeerMsg(msg) => {
-        h.broadcast_all(msg.data).await;
+    match peer_rx.recv().await {
+      Some(p) => {
+        bc.add_target(
+          p.sink(bc.tx().clone()) // ws => broadcaster
+            .spawn()
+            .await?,
+        ) // broadcaster => ws
+        .await
       }
-      ServerEvent::Custom(code) => {
-        if code == ws_listener_code {
-          h.add_peer(
-            ws_peer_rx
-              .recv()
-              .await
-              .unwrap()
-              .id(current_peer_id)
-              .server_tx(tx.clone())
-              .build()
-              .await?,
-          )?;
-          current_peer_id += 1;
-        }
-      }
-      ServerEvent::RemovePeer(id) => h.remove_peer(id)?,
-      _ => break,
+      None => todo!(),
     }
   }
 
