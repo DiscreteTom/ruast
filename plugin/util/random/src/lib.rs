@@ -1,34 +1,32 @@
-use std::time::Duration;
-
 use bytes::Bytes;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use rua::{
-  impl_node,
-  model::{NodeEvent, Result, Rx, Tx},
-};
-use tokio::{sync::mpsc, time};
+use rua::model::{Brx, Btx, NodeEvent, ReaderNode, WriterNode};
+use rua::node::MockReaderNode;
+use rua_macro::ReaderNode;
+use std::time::Duration;
+use tokio::sync::broadcast;
+use tokio::time;
 
+#[derive(ReaderNode)]
 pub struct RandomNode {
-  sink: Option<Tx>,
-  tx: Tx,
-  rx: Rx,
+  btx: Btx,
   nbyte: usize,
   interval: u64, // in ms
 }
 
 impl RandomNode {
-  impl_node!(tx, sink);
-
   pub fn new(buffer: usize) -> Self {
-    let (tx, rx) = mpsc::channel(buffer);
+    let (btx, _) = broadcast::channel(buffer);
     Self {
-      tx,
-      rx,
-      sink: None,
+      btx,
       nbyte: 8,
       interval: 200,
     }
+  }
+
+  pub fn default() -> Self {
+    Self::new(16)
   }
 
   pub fn nbyte(mut self, n: usize) -> Self {
@@ -41,34 +39,24 @@ impl RandomNode {
     self
   }
 
-  pub fn spawn(self) -> Result<Tx> {
-    let sink = self.sink.ok_or("missing sink when build RandomNode")?;
+  pub fn spawn(self) -> MockReaderNode {
     let interval = self.interval;
     let nbyte = self.nbyte;
-    let mut rx = self.rx;
+    let btx = self.btx.clone();
 
     tokio::spawn(async move {
       loop {
         tokio::select! {
-          e = rx.recv() => {
-            match e {
-              None => break,
-              Some(e) => {
-                if let NodeEvent::Stop = e {
-                  break
-                }
-              }
-            };
-          }
           _ = time::sleep(Duration::from_millis(interval)) => {
-            sink.send(NodeEvent::Write(random_alphanumeric_bytes(nbyte)))
-              .await.expect("RandomNode failed to write to sink");
+            if btx.send(NodeEvent::Write(random_alphanumeric_bytes(nbyte))).is_err() {
+              break
+            }
           }
         }
       }
     });
 
-    Ok(self.tx)
+    MockReaderNode::new(self.btx)
   }
 }
 
