@@ -1,7 +1,7 @@
 use crate::model::{Brx, Btx, ReaderNode, Tx, WriterNode};
 use rua_macro::{ReaderNode, WriterNode};
 
-#[derive(ReaderNode)]
+#[derive(ReaderNode, Debug, Clone)]
 pub struct MockReaderNode {
   btx: Btx,
 }
@@ -12,7 +12,7 @@ impl MockReaderNode {
   }
 }
 
-#[derive(WriterNode)]
+#[derive(WriterNode, Debug, Clone)]
 pub struct MockWriterNode {
   tx: Tx,
 }
@@ -29,7 +29,7 @@ impl MockWriterNode {
   }
 }
 
-#[derive(ReaderNode, WriterNode)]
+#[derive(ReaderNode, WriterNode, Debug, Clone)]
 pub struct MockNode {
   btx: Btx,
   tx: Tx,
