@@ -1,35 +1,17 @@
-use rua::{
-  model::Result,
-  node::{ctrlc::Ctrlc, Bc, FileNode, StdioNode},
-};
+use rua::node::{ctrlc::Ctrlc, FileNode, StdioNode};
 
 #[tokio::main]
-pub async fn main() -> Result<()> {
-  // create a new broadcaster
-  let mut bc = Bc::new(16);
+pub async fn main() {
+  let stdio = StdioNode::default()
+    .echo() // stdin => stdout
+    .spawn();
 
-  // add StdioNode to broadcaster
-  bc.add_target(
-    StdioNode::new(16)
-      .sink(bc.tx().clone()) // stdin => broadcaster
-      .spawn(), // spawn reader & writer, return handle
-  ) // broadcaster => stdout
-  .await;
+  let file = FileNode::default()
+    .filename("log.txt".to_string())
+    .subscribe(&stdio) // => stdin => file
+    .spawn()
+    .await
+    .expect("build FileNode failed");
 
-  // add FileNode to broadcaster
-  bc.add_target(
-    FileNode::new(16)
-      .filename("log.txt".to_string())
-      .spawn()
-      .await
-      .expect("build FileNode failed"),
-  ) // broadcaster => file
-  .await;
-
-  // wait for ctrl-c, then broadcast NodeEvent::Stop
-  Ctrlc::new().sink(bc.tx().clone()).wait().await;
-
-  Ok(())
-
-  // broadcaster will drop itself
+  Ctrlc::new().publish(&stdio).publish(&file).wait().await;
 }
