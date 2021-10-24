@@ -1,12 +1,14 @@
 pub mod broadcast;
 pub mod ctrlc;
-pub use broadcast::BcNode;
-pub use ctrlc::Ctrlc;
 pub mod file;
-pub use file::FileNode;
 pub mod lockstep;
 pub mod mock;
-pub use lockstep::LsNode;
 pub mod stdio;
-pub use stdio::StdioNode;
 pub mod utils;
+
+pub use broadcast::BcNode;
+pub use ctrlc::Ctrlc;
+pub use file::FileNode;
+pub use lockstep::LsNode;
+pub use mock::{MockNode, MockReaderNode, MockWriterNode};
+pub use stdio::StdioNode;
