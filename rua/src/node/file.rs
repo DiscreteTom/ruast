@@ -31,24 +31,6 @@ impl FileNode {
     self
   }
 
-  pub fn subscribe(self, other: &impl ReaderNode) -> Self {
-    let mut brx = other.brx();
-    let tx = self.tx().clone();
-    tokio::spawn(async move {
-      loop {
-        match brx.recv().await {
-          Ok(e) => {
-            if tx.send(e).await.is_err() {
-              break;
-            }
-          }
-          Err(_) => break,
-        }
-      }
-    });
-    self
-  }
-
   pub async fn spawn(self) -> Result<MockWriterNode> {
     let filename = self
       .filename

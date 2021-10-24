@@ -41,17 +41,6 @@ impl Ctrlc {
     Self { btx }
   }
 
-  pub fn publish(self, other: &impl WriterNode) -> Self {
-    let mut brx = self.btx.subscribe();
-    let tx = other.tx().clone();
-
-    tokio::spawn(async move {
-      let e = brx.recv().await.unwrap(); // e is NodeEvent::Stop
-      tx.send(e).await.ok();
-    });
-    self
-  }
-
   pub fn spawn(self) -> MockReaderNode {
     let btx = self.btx.clone();
     tokio::spawn(async move {
