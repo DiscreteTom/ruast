@@ -10,6 +10,39 @@ use tokio::{
   time::{self, Instant},
 };
 
+macro_rules! impl_lockstep_node {
+  ($name: ident) => {
+    impl<State: Send + 'static> ReaderNode for $name<State> {
+      impl_node!(brx);
+    }
+
+    impl<State: Send + 'static> WriterNode for $name<State> {
+      impl_node!(tx);
+    }
+
+    impl<State: Send + 'static> $name<State> {
+      pub fn default(step_length_ms: u64, state: State) -> Self {
+        Self::new(step_length_ms, state, 16, 16)
+      }
+
+      pub fn propagate_stop(mut self, enable: bool) -> Self {
+        self.propagate_stop = enable;
+        self
+      }
+
+      pub fn on_msg(mut self, f: impl Fn(u64, Bytes, &mut State) + 'static + Send) -> Self {
+        self.msg_handler = Some(Box::new(f));
+        self
+      }
+
+      pub fn on_step(mut self, f: impl Fn(u64, &mut State) -> Bytes + 'static + Send) -> Self {
+        self.step_handler = Some(Box::new(f));
+        self
+      }
+    }
+  };
+}
+
 /// Lockstep node.
 pub struct LsNode<State: Send + 'static> {
   tx: Tx,
@@ -22,13 +55,7 @@ pub struct LsNode<State: Send + 'static> {
   step_handler: Option<Box<dyn Fn(u64, &mut State) -> Bytes + 'static + Send>>,
 }
 
-impl<State: Send + 'static> ReaderNode for LsNode<State> {
-  impl_node!(brx);
-}
-
-impl<State: Send + 'static> WriterNode for LsNode<State> {
-  impl_node!(tx);
-}
+impl_lockstep_node!(LsNode);
 
 impl<State: Send + 'static> LsNode<State> {
   impl_node!(publish, subscribe);
@@ -47,25 +74,6 @@ impl<State: Send + 'static> LsNode<State> {
       msg_handler: None,
       step_handler: None,
     }
-  }
-
-  pub fn default(step_length_ms: u64, state: State) -> Self {
-    Self::new(step_length_ms, state, 16, 16)
-  }
-
-  pub fn propagate_stop(mut self, enable: bool) -> Self {
-    self.propagate_stop = enable;
-    self
-  }
-
-  pub fn on_msg(mut self, f: impl Fn(u64, Bytes, &mut State) + 'static + Send) -> Self {
-    self.msg_handler = Some(Box::new(f));
-    self
-  }
-
-  pub fn on_step(mut self, f: impl Fn(u64, &mut State) -> Bytes + 'static + Send) -> Self {
-    self.step_handler = Some(Box::new(f));
-    self
   }
 
   pub fn spawn(self) -> Result<MockNode> {
@@ -129,13 +137,7 @@ pub struct DlsNode<State: Send + 'static> {
   step_handler: Option<Box<dyn Fn(u64, &mut State) -> Bytes + 'static + Send>>,
 }
 
-impl<State: Send + 'static> ReaderNode for DlsNode<State> {
-  impl_node!(brx);
-}
-
-impl<State: Send + 'static> WriterNode for DlsNode<State> {
-  impl_node!(tx);
-}
+impl_lockstep_node!(DlsNode);
 
 impl<State: Send + 'static> DlsNode<State> {
   impl_node!(publish, subscribe);
@@ -154,25 +156,6 @@ impl<State: Send + 'static> DlsNode<State> {
       msg_handler: None,
       step_handler: None,
     }
-  }
-
-  pub fn default(step_length_ms: u64, state: State) -> Self {
-    Self::new(step_length_ms, state, 16, 16)
-  }
-
-  pub fn propagate_stop(mut self, enable: bool) -> Self {
-    self.propagate_stop = enable;
-    self
-  }
-
-  pub fn on_msg(mut self, f: impl Fn(u64, Bytes, &mut State) + 'static + Send) -> Self {
-    self.msg_handler = Some(Box::new(f));
-    self
-  }
-
-  pub fn on_step(mut self, f: impl Fn(u64, &mut State) -> Bytes + 'static + Send) -> Self {
-    self.step_handler = Some(Box::new(f));
-    self
   }
 
   pub fn step_length_ms(&self) -> Arc<Mutex<u64>> {
