@@ -4,7 +4,6 @@ pub mod file;
 pub mod lockstep;
 pub mod mock;
 pub mod stdio;
-pub mod utils;
 
 pub use broadcast::BcNode;
 pub use ctrlc::Ctrlc;
