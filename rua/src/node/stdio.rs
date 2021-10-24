@@ -28,7 +28,7 @@ impl StdioNode {
   }
 
   // other.btx => self.tx
-  pub fn subscribe(self, other: impl ReaderNode) -> Self {
+  pub fn subscribe(self, other: &impl ReaderNode) -> Self {
     let mut brx = other.brx();
     let tx = self.tx().clone();
     tokio::spawn(async move {
@@ -47,7 +47,7 @@ impl StdioNode {
   }
 
   // self.btx => other.tx
-  pub fn publish(self, other: impl WriterNode) -> Self {
+  pub fn publish(self, other: &impl WriterNode) -> Self {
     let mut brx = self.brx();
     let tx = other.tx().clone();
 
@@ -68,7 +68,7 @@ impl StdioNode {
 
   pub fn echo(self) -> Self {
     let tx = self.tx().clone();
-    self.publish(MockWriterNode::new(tx))
+    self.publish(&MockWriterNode::new(tx))
   }
 
   pub fn spawn(self) -> MockNode {
