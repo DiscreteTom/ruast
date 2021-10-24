@@ -1,10 +1,10 @@
+use crate::model::{NodeEvent, ReaderNode, Result, Rx, Tx, WriterNode};
+use rua_macro::WriterNode;
 use tokio::{io::AsyncWriteExt, sync::mpsc};
 
-use crate::{
-  impl_node,
-  model::{NodeEvent, Result, Rx, Tx},
-};
+use super::mock::MockWriterNode;
 
+#[derive(WriterNode)]
 pub struct FileNode {
   rx: Rx,
   tx: Tx,
@@ -12,8 +12,6 @@ pub struct FileNode {
 }
 
 impl FileNode {
-  impl_node!(tx);
-
   pub fn new(buffer: usize) -> Self {
     let (tx, rx) = mpsc::channel(buffer);
 
@@ -24,12 +22,34 @@ impl FileNode {
     }
   }
 
+  pub fn default() -> Self {
+    Self::new(16)
+  }
+
   pub fn filename(mut self, filename: String) -> Self {
     self.filename = Some(filename);
     self
   }
 
-  pub async fn spawn(self) -> Result<Tx> {
+  pub fn subscribe(self, other: &impl ReaderNode) -> Self {
+    let mut brx = other.brx();
+    let tx = self.tx().clone();
+    tokio::spawn(async move {
+      loop {
+        match brx.recv().await {
+          Ok(e) => {
+            if tx.send(e).await.is_err() {
+              break;
+            }
+          }
+          Err(_) => break,
+        }
+      }
+    });
+    self
+  }
+
+  pub async fn spawn(self) -> Result<MockWriterNode> {
     let filename = self
       .filename
       .ok_or("missing filename when build FileNode")?;
@@ -72,6 +92,6 @@ impl FileNode {
       }
     });
 
-    Ok(self.tx)
+    Ok(MockWriterNode::new(self.tx))
   }
 }
