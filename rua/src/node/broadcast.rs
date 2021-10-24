@@ -1,93 +1,103 @@
-use std::sync::Arc;
+use rua_macro::{ReaderNode, WriterNode};
+use tokio::sync::{broadcast, mpsc};
 
-use tokio::sync::{
-  mpsc::{self, Sender},
-  Mutex,
-};
+use crate::model::{Brx, Btx, NodeEvent, ReaderNode, Rx, Tx, WriterNode};
 
-use crate::model::{NodeEvent, Rx, Tx};
+use super::mock::MockNode;
 
-/// Broadcaster.
-/// You can add targets to the broadcaster dynamically by calling `add_target`.
-/// Broadcaster will automatically remove dead targets from itself.
-pub struct Bc {
-  targets: Arc<Mutex<Vec<Tx>>>,
+/// Broadcast node.
+#[derive(ReaderNode, WriterNode)]
+pub struct BcNode {
   tx: Tx,
-  stop_tx: Sender<()>,
-  stop_targets_on_drop: bool,
+  rx: Rx,
+  btx: Btx,
+  propagate_stop: bool,
 }
 
-impl Bc {
-  pub fn new(buffer: usize) -> Self {
-    let (tx, mut rx): (Tx, Rx) = mpsc::channel(buffer);
-    let (stop_tx, mut stop_rx) = mpsc::channel(1);
-    let targets: Arc<Mutex<Vec<Tx>>> = Arc::new(Mutex::new(Vec::new()));
-
-    {
-      let targets = targets.clone();
-      tokio::spawn(async move {
-        loop {
-          tokio::select! {
-            e = rx.recv() => {
-              match e {
-                Some(e)=>{
-                  let mut targets = targets.lock().await;
-                  let mut dead_targets: Vec<usize> = Vec::new();
-                  for (i, p) in targets.iter().enumerate() {
-                    if let Err(_) = p.send(e.clone()).await {
-                      // this target has been closed
-                      dead_targets.push(i);
-                    };
-                  }
-                  // remove dead targets
-                  while let Some(dead) = dead_targets.pop() {
-                    targets.remove(dead);
-                  }
-                }
-                None=>break,
-              }
-            }
-            _ = stop_rx.recv() => {
-              break
-            }
-          };
-        }
-      });
-    }
-
+impl BcNode {
+  pub fn new(write_buffer: usize, read_buffer: usize) -> Self {
+    let (tx, rx) = mpsc::channel(write_buffer);
+    let (btx, _) = broadcast::channel(read_buffer);
     Self {
       tx,
-      stop_tx,
-      targets,
-      stop_targets_on_drop: false,
+      rx,
+      btx,
+      propagate_stop: false,
     }
   }
 
-  pub fn stop_targets_on_drop(&mut self, enable: bool) {
-    self.stop_targets_on_drop = enable;
+  pub fn default() -> Self {
+    Self::new(16, 16)
   }
 
-  pub fn tx(&self) -> &Tx {
-    &self.tx
+  pub fn propagate_stop(mut self, enable: bool) -> Self {
+    self.propagate_stop = enable;
+    self
   }
 
-  pub async fn add_target(&mut self, target: Tx) {
-    self.targets.lock().await.push(target);
-  }
-}
-
-impl Drop for Bc {
-  fn drop(&mut self) {
-    let stop_tx = self.stop_tx.clone();
+  // other.btx => self.tx
+  pub fn subscribe(self, other: &impl ReaderNode) -> Self {
+    let mut brx = other.brx();
+    let tx = self.tx().clone();
     tokio::spawn(async move {
-      stop_tx.send(()).await.ok(); // stop self
+      loop {
+        match brx.recv().await {
+          Ok(e) => {
+            if tx.send(e).await.is_err() {
+              break;
+            }
+          }
+          Err(_) => break,
+        }
+      }
+    });
+    self
+  }
+
+  // self.btx => other.tx
+  pub fn publish(self, other: &impl WriterNode) -> Self {
+    let mut brx = self.brx();
+    let tx = other.tx().clone();
+
+    tokio::spawn(async move {
+      loop {
+        match brx.recv().await {
+          Ok(e) => {
+            if tx.send(e).await.is_err() {
+              break;
+            }
+          }
+          Err(_) => break,
+        }
+      }
+    });
+    self
+  }
+
+  pub fn spawn(self) -> MockNode {
+    let btx = self.btx.clone();
+    let mut rx = self.rx;
+    let propagate_stop = self.propagate_stop;
+
+    tokio::spawn(async move {
+      loop {
+        match rx.recv().await {
+          Some(e) => match e {
+            NodeEvent::Write(data) => {
+              btx.send(NodeEvent::Write(data)).unwrap();
+            }
+            NodeEvent::Stop => {
+              if propagate_stop {
+                btx.send(NodeEvent::Stop).unwrap();
+              }
+              break;
+            }
+          },
+          None => break,
+        }
+      }
     });
 
-    if self.stop_targets_on_drop {
-      let tx = self.tx.clone();
-      tokio::spawn(async move {
-        tx.send(NodeEvent::Stop).await.ok(); // stop all targets
-      });
-    }
+    MockNode::new(self.btx, self.tx)
   }
 }
