@@ -41,8 +41,12 @@ impl StdioNode {
     self
   }
 
+  pub fn btx(&self) -> &Btx {
+    &self.btx
+  }
+
   pub fn echo(self) -> Self {
-    let btx = self.btx.clone();
+    let btx = self.btx().clone();
     self.subscribe(&btx)
   }
 
