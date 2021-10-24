@@ -14,6 +14,14 @@ pub type Rx = mpsc::Receiver<NodeEvent>;
 pub type Btx = broadcast::Sender<NodeEvent>;
 pub type Brx = broadcast::Receiver<NodeEvent>;
 
+pub trait WriterNode {
+  fn tx(&self) -> &Tx;
+}
+
+pub trait ReaderNode {
+  fn brx(&self) -> Brx;
+}
+
 // #[async_trait]
 // pub trait PeerBuilder {
 //   fn id(&mut self, id: u32) -> &mut dyn PeerBuilder;
