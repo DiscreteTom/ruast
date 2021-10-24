@@ -1,6 +1,9 @@
+use rua_macro::ReaderNode;
 use tokio::sync::broadcast::channel;
 
-use crate::model::{Btx, NodeEvent};
+use crate::model::{Brx, Btx, NodeEvent, ReaderNode, WriterNode};
+
+use super::mock::MockReaderNode;
 
 /// Ctrl-C handler.
 ///
@@ -12,21 +15,22 @@ use crate::model::{Btx, NodeEvent};
 /// Ctrlc::new().wait().await;
 /// ```
 ///
-/// ## Async wait and send NodeEvent
+/// ## Async wait and broadcast NodeEvent
 ///
 /// ```
-/// let (tx, rx) = tokio::broadcast::channel(1);
-/// Ctrlc::new().publish(tx).spawn().unwrap();
-/// rx.recv().await;
+/// // register targets when constructing ctrlc
+/// let ctrlc = Ctrlc::new().publish(&node1).publish(&node2).spawn();
+/// // register targets after constructing ctrlc
+/// node3.subscribe(&ctrlc);
+/// node4.subscribe(&ctrlc);
 /// ```
 ///
-/// ## Wait for Ctrl-C then send NodeEvent
+/// ## Wait for Ctrl-C then broadcast NodeEvent
 ///
 /// ```
-/// let (tx, rx) = tokio::broadcast::channel(1);
-/// Ctrlc::new().publish(tx).wait().await;
-/// rx.recv().await;
+/// Ctrlc::new().publish(&node1).publish(&node2).wait().await;
 /// ```
+#[derive(ReaderNode)]
 pub struct Ctrlc {
   btx: Btx,
 }
@@ -37,26 +41,28 @@ impl Ctrlc {
     Self { btx }
   }
 
-  pub fn publish(self, target: Btx) -> Self {
+  pub fn publish(self, other: &impl WriterNode) -> Self {
     let mut brx = self.btx.subscribe();
+    let tx = other.tx().clone();
+
     tokio::spawn(async move {
       let e = brx.recv().await.unwrap(); // e is NodeEvent::Stop
-      target.send(e).ok();
+      tx.send(e).await.ok();
     });
     self
   }
 
-  pub fn spawn(self) {
-    let btx = self.btx;
+  pub fn spawn(self) -> MockReaderNode {
+    let btx = self.btx.clone();
     tokio::spawn(async move {
       tokio::signal::ctrl_c()
         .await
         .expect("failed to listen for ctrlc");
       btx.send(NodeEvent::Stop).ok();
     });
+    MockReaderNode::new(self.btx)
   }
 
-  /// Wait for Ctrl-C. If `sink` exists, send `NodeEvent::Stop` to the sink.
   pub async fn wait(self) {
     tokio::signal::ctrl_c()
       .await
