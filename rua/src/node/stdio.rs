@@ -52,6 +52,7 @@ impl StdioNode {
 
   pub fn spawn(self) -> Btx {
     let tx = self.tx;
+    let btx = self.btx;
     let mut rx = self.rx;
     let (stop_tx, mut stop_rx) = mpsc::channel(1);
 
@@ -70,8 +71,7 @@ impl StdioNode {
               Ok(b)=>{
                 if b == b'\n' {
                   // send
-                  tx.send(NodeEvent::Write(buffer.freeze()))
-                    .await
+                  btx.send(NodeEvent::Write(buffer.freeze()))
                     .expect("StdioNode send event failed");
                   // reset buffer
                   buffer = BytesMut::with_capacity(64);
