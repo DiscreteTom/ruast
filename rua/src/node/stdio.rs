@@ -1,11 +1,15 @@
 use bytes::{BufMut, BytesMut};
+use rua_macro::{ReaderNode, WriterNode};
 use tokio::{
   io::{self, AsyncReadExt, AsyncWriteExt},
   sync::{broadcast, mpsc},
 };
 
-use crate::model::{Btx, NodeEvent, Rx, Tx};
+use crate::model::{Brx, Btx, NodeEvent, ReaderNode, Rx, Tx, WriterNode};
 
+use super::mock::{MockNode, MockWriterNode};
+
+#[derive(ReaderNode, WriterNode)]
 pub struct StdioNode {
   rx: Rx,
   tx: Tx,
@@ -13,9 +17,9 @@ pub struct StdioNode {
 }
 
 impl StdioNode {
-  pub fn new(in_buffer: usize, out_buffer: usize) -> Self {
-    let (tx, rx) = mpsc::channel(in_buffer);
-    let (btx, _) = broadcast::channel(out_buffer);
+  pub fn new(write_buffer: usize, read_buffer: usize) -> Self {
+    let (tx, rx) = mpsc::channel(write_buffer);
+    let (btx, _) = broadcast::channel(read_buffer);
     Self { tx, rx, btx }
   }
 
@@ -23,9 +27,10 @@ impl StdioNode {
     Self::new(16, 16)
   }
 
-  pub fn subscribe(self, btx: &Btx) -> Self {
-    let mut brx = btx.subscribe();
-    let tx = self.tx.clone();
+  // other.btx => self.tx
+  pub fn subscribe(self, other: impl ReaderNode) -> Self {
+    let mut brx = other.brx();
+    let tx = self.tx().clone();
     tokio::spawn(async move {
       loop {
         match brx.recv().await {
@@ -41,13 +46,16 @@ impl StdioNode {
     self
   }
 
-  pub fn publish(self, btx: Btx) -> Self {
-    let mut brx = self.btx().subscribe();
+  // self.btx => other.tx
+  pub fn publish(self, other: impl WriterNode) -> Self {
+    let mut brx = self.brx();
+    let tx = other.tx().clone();
+
     tokio::spawn(async move {
       loop {
         match brx.recv().await {
           Ok(e) => {
-            if btx.send(e).is_err() {
+            if tx.send(e).await.is_err() {
               break;
             }
           }
@@ -58,16 +66,12 @@ impl StdioNode {
     self
   }
 
-  pub fn btx(&self) -> &Btx {
-    &self.btx
-  }
-
   pub fn echo(self) -> Self {
-    let btx = self.btx().clone();
-    self.subscribe(&btx)
+    let tx = self.tx().clone();
+    self.publish(MockWriterNode::new(tx))
   }
 
-  pub fn spawn(self) -> Btx {
+  pub fn spawn(self) -> MockNode {
     let btx = self.btx.clone();
     let mut rx = self.rx;
     let (stop_tx, mut stop_rx) = mpsc::channel(1);
@@ -133,6 +137,6 @@ impl StdioNode {
       stop_tx.send(()).await.ok();
     });
 
-    self.btx
+    MockNode::new(self.btx, self.tx)
   }
 }
