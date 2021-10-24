@@ -42,7 +42,7 @@ impl StdioNode {
   }
 
   pub fn publish(self, btx: Btx) -> Self {
-    let brx = self.btx().subscribe();
+    let mut brx = self.btx().subscribe();
     tokio::spawn(async move {
       loop {
         match brx.recv().await {
@@ -68,8 +68,7 @@ impl StdioNode {
   }
 
   pub fn spawn(self) -> Btx {
-    let tx = self.tx;
-    let btx = self.btx;
+    let btx = self.btx.clone();
     let mut rx = self.rx;
     let (stop_tx, mut stop_rx) = mpsc::channel(1);
 
