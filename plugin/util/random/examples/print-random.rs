@@ -1,6 +1,6 @@
 use rua::{
   model::Result,
-  node::{ctrlc::Ctrlc, StdioNode},
+  node::{ctrlc::Ctrlc, stdio::StdioNode},
 };
 use rua_random::RandomNode;
 
@@ -10,12 +10,21 @@ pub async fn main() -> Result<()> {
   let stdio = StdioNode::default().spawn();
 
   // generate random alphanumeric bytes
-  RandomNode::default()
-    .publish(&stdio) // random => stdout
-    .spawn();
+  let rand = RandomNode::new()
+    .on_msg({
+      let stdio = stdio.clone();
+      move |data| stdio.write(data)
+    })
+    .spawn()
+    .expect("failed to create RandomNode");
 
-  // broadcast NodeEvent::Stop
-  Ctrlc::new().publish(&stdio).wait().await;
+  Ctrlc::new()
+    .on_signal(move || {
+      stdio.stop();
+      rand.stop();
+    })
+    .wait()
+    .await;
 
   Ok(())
 }
