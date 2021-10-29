@@ -13,15 +13,7 @@ impl Ctrlc {
   }
 
   pub fn spawn(self) {
-    let handler = self.handler;
-    tokio::spawn(async move {
-      tokio::signal::ctrl_c()
-        .await
-        .expect("failed to listen for ctrlc");
-      if let Some(handler) = handler {
-        (handler)();
-      }
-    });
+    tokio::spawn(async move { self.wait().await });
   }
 
   pub async fn wait(self) {
