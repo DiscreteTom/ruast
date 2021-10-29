@@ -3,7 +3,6 @@ pub mod file;
 pub mod lockstep;
 pub mod state;
 pub mod stdio;
-pub mod util;
 
 pub use ctrlc::Ctrlc;
 pub use file::FileNode;
