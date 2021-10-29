@@ -3,6 +3,7 @@ use tokio::sync::mpsc::{self, Sender};
 
 use crate::model::{Rx, Tx, Writable};
 
+#[derive(Clone)]
 pub struct BcNode {
   tx: Tx,
   node_tx: Sender<Box<dyn Writable + Send>>,

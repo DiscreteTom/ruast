@@ -8,7 +8,7 @@ use tokio::{
 use crate::model::{Result, StopperHandle, Urx};
 
 pub struct Lockstep {
-  step_handler: Option<Box<dyn Fn(u64) + Send>>,
+  step_handler: Option<Box<dyn FnMut(u64) + Send>>,
   step_length_ms: u64,
   stop_rx: Urx,
   handle: StopperHandle,
@@ -31,13 +31,13 @@ impl Lockstep {
     self
   }
 
-  pub fn on_step(mut self, f: impl Fn(u64) + 'static + Send) -> Self {
+  pub fn on_step(mut self, f: impl FnMut(u64) + 'static + Send) -> Self {
     self.step_handler = Some(Box::new(f));
     self
   }
 
   pub fn spawn(self) -> Result<StopperHandle> {
-    let step_handler = self
+    let mut step_handler = self
       .step_handler
       .ok_or("missing step handler when build LsNode")?;
     let step_length_ms = self.step_length_ms;

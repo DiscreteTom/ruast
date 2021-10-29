@@ -7,7 +7,7 @@ use tokio::{
 use crate::model::{Rx, Urx, WritableStopperHandle};
 
 pub struct StdioNode {
-  msg_handler: Option<Box<dyn Fn(Bytes) + Send>>,
+  msg_handler: Option<Box<dyn FnMut(Bytes) + Send>>,
   handle: WritableStopperHandle,
   rx: Rx,
   stop_rx: Urx,
@@ -30,7 +30,7 @@ impl StdioNode {
     Self::new(16)
   }
 
-  pub fn on_msg(mut self, f: impl Fn(Bytes) + 'static + Send) -> Self {
+  pub fn on_msg(mut self, f: impl FnMut(Bytes) + 'static + Send) -> Self {
     self.msg_handler = Some(Box::new(f));
     self
   }
@@ -44,7 +44,7 @@ impl StdioNode {
     let mut rx = self.rx;
 
     // reader thread
-    if let Some(msg_handler) = self.msg_handler {
+    if let Some(mut msg_handler) = self.msg_handler {
       tokio::spawn(async move {
         let mut stdin = io::stdin();
         let mut buffer = BytesMut::with_capacity(64);
