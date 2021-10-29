@@ -1,14 +1,17 @@
-use super::mock::MockWriterNode;
-use crate::impl_node;
-use crate::model::{NodeEvent, ReaderNode, Result, Rx, Tx, WriterNode};
-use rua_macro::WriterNode;
-use tokio::{io::AsyncWriteExt, sync::mpsc};
+use std::sync::Arc;
 
-#[derive(WriterNode)]
+use bytes::Bytes;
+use tokio::{
+  io::AsyncWriteExt,
+  sync::{mpsc, Mutex},
+};
+
+use crate::model::{Result, Rx, Tx};
+
 pub struct FileNode {
-  rx: Rx,
-  tx: Tx,
+  handle: FileNodeHandle,
   filename: Option<String>,
+  rx: Rx,
 }
 
 impl FileNode {
@@ -16,9 +19,9 @@ impl FileNode {
     let (tx, rx) = mpsc::channel(buffer);
 
     Self {
-      tx,
-      rx,
+      handle: FileNodeHandle::new(tx),
       filename: None,
+      rx,
     }
   }
 
@@ -31,7 +34,11 @@ impl FileNode {
     self
   }
 
-  pub async fn spawn(self) -> Result<MockWriterNode> {
+  pub fn handle(&self) -> FileNodeHandle {
+    self.handle.clone()
+  }
+
+  pub async fn spawn(self) -> Result<FileNodeHandle> {
     let filename = self
       .filename
       .ok_or("missing filename when build FileNode")?;
@@ -48,32 +55,50 @@ impl FileNode {
     tokio::spawn(async move {
       loop {
         match rx.recv().await {
-          Some(e) => match e {
-            NodeEvent::Write(data) => {
-              file
-                .write_all(&data)
-                .await
-                .expect("FileNode write data failed");
-              file
-                .write_all(b"\n")
-                .await
-                .expect("FileNode write \\n failed");
-              file
-                .sync_data()
-                .await
-                .expect("FileNode flush output failed");
-            }
-            NodeEvent::Stop => {
-              break;
-            }
-          },
+          Some(data) => {
+            file
+              .write_all(&data)
+              .await
+              .expect("FileNode write data failed");
+            file
+              .write_all(b"\n")
+              .await
+              .expect("FileNode write \\n failed");
+            file
+              .sync_data()
+              .await
+              .expect("FileNode flush output failed");
+          }
           None => {
             break;
           }
         }
       }
     });
-
-    Ok(MockWriterNode::new(self.tx))
+    Ok(self.handle)
   }
+}
+
+struct FileNodeCore {
+  tx: Tx,
+}
+
+#[derive(Clone)]
+pub struct FileNodeHandle {
+  core: Arc<Mutex<FileNodeCore>>,
+}
+
+impl FileNodeHandle {
+  fn new(tx: Tx) -> Self {
+    Self {
+      core: Arc::new(Mutex::new(FileNodeCore { tx })),
+    }
+  }
+
+  pub fn write(&self, data: Bytes) {
+    let core = self.core.clone();
+    tokio::spawn(async move { core.lock().await.tx.send(data).await });
+  }
+
+  pub fn stop(self) {}
 }
