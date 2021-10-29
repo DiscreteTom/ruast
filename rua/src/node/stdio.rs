@@ -1,102 +1,136 @@
-use super::mock::{MockNode, MockWriterNode};
-use crate::impl_node;
-use crate::model::{Brx, Btx, NodeEvent, ReaderNode, Rx, Tx, WriterNode};
-use bytes::{BufMut, BytesMut};
-use rua_macro::{ReaderNode, WriterNode};
+use std::sync::Arc;
+
+use bytes::{BufMut, Bytes, BytesMut};
 use tokio::{
   io::{self, AsyncReadExt, AsyncWriteExt},
-  sync::{broadcast, mpsc},
+  sync::{mpsc, Mutex},
 };
 
-#[derive(ReaderNode, WriterNode)]
+use crate::model::{Rx, Tx, Urx, Utx};
+
 pub struct StdioNode {
+  msg_handler: Option<Box<dyn Fn(Bytes) + Send>>,
+  handle: StdioNodeHandle,
   rx: Rx,
-  tx: Tx,
-  btx: Btx,
+  stop_rx: Urx,
 }
 
 impl StdioNode {
-  pub fn new(write_buffer: usize, read_buffer: usize) -> Self {
-    let (tx, rx) = mpsc::channel(write_buffer);
-    let (btx, _) = broadcast::channel(read_buffer);
-    Self { tx, rx, btx }
+  pub fn new(buffer: usize) -> Self {
+    let (tx, rx) = mpsc::channel(buffer);
+    let (stop_tx, stop_rx) = mpsc::channel(1);
+
+    Self {
+      msg_handler: None,
+      handle: StdioNodeHandle::new(tx, stop_tx),
+      rx,
+      stop_rx,
+    }
   }
 
   pub fn default() -> Self {
-    Self::new(16, 16)
+    Self::new(16)
   }
 
-  pub fn echo(self) -> Self {
-    let tx = self.tx().clone();
-    self.publish(&MockWriterNode::new(tx))
+  pub fn on_msg(mut self, f: impl Fn(Bytes) + 'static + Send) -> Self {
+    self.msg_handler = Some(Box::new(f));
+    self
   }
 
-  pub fn spawn(self) -> MockNode {
-    let btx = self.btx.clone();
+  pub fn handle(&self) -> StdioNodeHandle {
+    self.handle.clone()
+  }
+
+  pub fn spawn(self) -> StdioNodeHandle {
+    let mut stop_rx = self.stop_rx;
     let mut rx = self.rx;
-    let (stop_tx, mut stop_rx) = mpsc::channel(1);
 
     // reader thread
-    tokio::spawn(async move {
-      let mut stdin = io::stdin();
-      let mut buffer = BytesMut::with_capacity(64);
+    if let Some(msg_handler) = self.msg_handler {
+      tokio::spawn(async move {
+        let mut stdin = io::stdin();
+        let mut buffer = BytesMut::with_capacity(64);
 
-      loop {
-        tokio::select! {
-          _ = stop_rx.recv() => {
-            break
-          }
-          b = stdin.read_u8() => {
-            match b{
-              Ok(b)=>{
-                if b == b'\n' {
-                  // send
-                  btx.send(NodeEvent::Write(buffer.freeze()))
-                    .expect("StdioNode send event failed");
-                  // reset buffer
-                  buffer = BytesMut::with_capacity(64);
-                } else if b != b'\r' {
-                  // append
-                  if buffer.len() == buffer.capacity() {
-                    buffer.reserve(64);
+        loop {
+          tokio::select! {
+            _ = stop_rx.recv() => {
+              break
+            }
+            b = stdin.read_u8() => {
+              match b{
+                Ok(b)=>{
+                  if b == b'\n' {
+                    // handle msg
+                    (msg_handler)(buffer.freeze());
+                    // reset buffer
+                    buffer = BytesMut::with_capacity(64);
+                  } else if b != b'\r' {
+                    // append
+                    if buffer.len() == buffer.capacity() {
+                      buffer.reserve(64);
+                    }
+                    buffer.put_u8(b);
                   }
-                  buffer.put_u8(b);
                 }
-              }
-              Err(_)=>{
-                break;
+                Err(_)=>{
+                  break;
+                }
               }
             }
           }
         }
-      }
-    });
+      });
+    }
 
     // writer thread
     tokio::spawn(async move {
       let mut stdout = io::stdout();
       loop {
         match rx.recv().await {
-          Some(e) => match e {
-            NodeEvent::Write(data) => {
-              stdout
-                .write_all(&data)
-                .await
-                .expect("StdioNode write data failed");
-              stdout
-                .write_all(b"\n")
-                .await
-                .expect("StdioNode write \\n failed");
-              stdout.flush().await.expect("StdioNode flush output failed");
-            }
-            NodeEvent::Stop => break,
-          },
+          Some(data) => {
+            stdout
+              .write_all(&data)
+              .await
+              .expect("StdioNode write data failed");
+            stdout
+              .write_all(b"\n")
+              .await
+              .expect("StdioNode write \\n failed");
+            stdout.flush().await.expect("StdioNode flush output failed");
+          }
           None => break,
         }
       }
-      stop_tx.send(()).await.ok();
     });
 
-    MockNode::new(self.btx, self.tx)
+    self.handle
+  }
+}
+
+struct StdioNodeCore {
+  tx: Tx,
+  stop_tx: Utx,
+}
+
+#[derive(Clone)]
+pub struct StdioNodeHandle {
+  core: Arc<Mutex<StdioNodeCore>>,
+}
+
+impl StdioNodeHandle {
+  fn new(tx: Tx, stop_tx: Utx) -> Self {
+    Self {
+      core: Arc::new(Mutex::new(StdioNodeCore { tx, stop_tx })),
+    }
+  }
+
+  pub fn write(&self, data: Bytes) {
+    let core = self.core.clone();
+    tokio::spawn(async move { core.lock().await.tx.send(data).await });
+  }
+
+  pub fn stop(self) {
+    let core = self.core.clone();
+    tokio::spawn(async move { core.lock().await.stop_tx.send(()).await });
   }
 }
