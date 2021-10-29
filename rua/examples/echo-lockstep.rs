@@ -1,4 +1,5 @@
 use bytes::BytesMut;
+use rua::model::{Stoppable, Writable};
 use rua::node::lockstep::Lockstep;
 use rua::node::state::StateNode;
 use rua::node::{ctrlc::Ctrlc, stdio::StdioNode};

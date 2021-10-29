@@ -1,4 +1,7 @@
-use rua::node::{ctrlc::Ctrlc, stdio::StdioNode};
+use rua::{
+  model::{Stoppable, Writable},
+  node::{ctrlc::Ctrlc, stdio::StdioNode},
+};
 
 #[tokio::main]
 pub async fn main() {

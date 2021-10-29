@@ -8,6 +8,14 @@ pub type Rx = mpsc::Receiver<Bytes>;
 pub type Utx = mpsc::Sender<()>;
 pub type Urx = mpsc::Receiver<()>;
 
+pub trait Writable {
+  fn write(&self, data: Bytes);
+}
+
+pub trait Stoppable {
+  fn stop(self);
+}
+
 #[derive(Clone)]
 pub struct StopperHandle {
   stop_tx: Utx,
@@ -17,7 +25,10 @@ impl StopperHandle {
   pub fn new(stop_tx: Utx) -> Self {
     Self { stop_tx }
   }
-  pub fn stop(self) {
+}
+
+impl Stoppable for StopperHandle {
+  fn stop(self) {
     let stop_tx = self.stop_tx;
     tokio::spawn(async move { stop_tx.send(()).await });
   }
@@ -33,14 +44,18 @@ impl WritableStopperHandle {
   pub fn new(tx: Tx, stop_tx: Utx) -> Self {
     Self { tx, stop_tx }
   }
+}
 
-  pub fn write(&self, data: Bytes) {
-    let tx = self.tx.clone();
-    tokio::spawn(async move { tx.send(data).await });
-  }
-
-  pub fn stop(self) {
+impl Stoppable for WritableStopperHandle {
+  fn stop(self) {
     let stop_tx = self.stop_tx.clone();
     tokio::spawn(async move { stop_tx.send(()).await });
+  }
+}
+
+impl Writable for WritableStopperHandle {
+  fn write(&self, data: Bytes) {
+    let tx = self.tx.clone();
+    tokio::spawn(async move { tx.send(data).await });
   }
 }
