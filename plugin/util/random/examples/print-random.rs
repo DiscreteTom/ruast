@@ -1,5 +1,5 @@
 use rua::{
-  model::Result,
+  model::{Result, Stoppable, Writable},
   node::{ctrlc::Ctrlc, stdio::StdioNode},
 };
 use rua_random::RandomNode;
