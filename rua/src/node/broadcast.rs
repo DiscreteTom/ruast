@@ -38,6 +38,10 @@ impl BcNode {
     Self { tx, node_tx }
   }
 
+  pub fn default() -> Self {
+    Self::new(16)
+  }
+
   pub fn add_target(&mut self, t: impl Writable + 'static + Send) {
     let node_tx = self.node_tx.clone();
     tokio::spawn(async move { node_tx.send(Box::new(t)).await });
