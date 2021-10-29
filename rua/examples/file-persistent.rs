@@ -1,17 +1,24 @@
-use rua::node::{ctrlc::Ctrlc, FileNode, StdioNode};
+use rua::node::{ctrlc::Ctrlc, file::FileNode, stdio::StdioNode};
 
 #[tokio::main]
 pub async fn main() {
-  let stdio = StdioNode::default()
-    .echo() // stdin => stdout
-    .spawn();
-
   let file = FileNode::default()
     .filename("log.txt".to_string())
-    .subscribe(&stdio) // => stdin => file
     .spawn()
     .await
-    .expect("build FileNode failed");
+    .expect("failed to create file peer");
 
-  Ctrlc::new().publish(&stdio).publish(&file).wait().await;
+  let stdio = StdioNode::default()
+    .on_msg({
+      let file = file.clone();
+      move |msg| file.write(msg)
+    })
+    .spawn();
+
+  Ctrlc::new()
+    .on_signal(move || {
+      stdio.stop();
+      file.stop()
+    })
+    .spawn();
 }
