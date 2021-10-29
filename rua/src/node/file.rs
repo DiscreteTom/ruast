@@ -1,10 +1,5 @@
-use std::sync::Arc;
-
 use bytes::Bytes;
-use tokio::{
-  io::AsyncWriteExt,
-  sync::{mpsc, Mutex},
-};
+use tokio::{io::AsyncWriteExt, sync::mpsc};
 
 use crate::model::{Result, Rx, Tx};
 
@@ -79,25 +74,19 @@ impl FileNode {
   }
 }
 
-struct FileNodeCore {
-  tx: Tx,
-}
-
 #[derive(Clone)]
 pub struct FileNodeHandle {
-  core: Arc<Mutex<FileNodeCore>>,
+  tx: Tx,
 }
 
 impl FileNodeHandle {
   fn new(tx: Tx) -> Self {
-    Self {
-      core: Arc::new(Mutex::new(FileNodeCore { tx })),
-    }
+    Self { tx }
   }
 
   pub fn write(&self, data: Bytes) {
-    let core = self.core.clone();
-    tokio::spawn(async move { core.lock().await.tx.send(data).await });
+    let tx = self.tx.clone();
+    tokio::spawn(async move { tx.send(data).await });
   }
 
   pub fn stop(self) {}

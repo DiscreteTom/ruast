@@ -1,9 +1,7 @@
-use std::sync::Arc;
-
 use bytes::{BufMut, Bytes, BytesMut};
 use tokio::{
   io::{self, AsyncReadExt, AsyncWriteExt},
-  sync::{mpsc, Mutex},
+  sync::mpsc,
 };
 
 use crate::model::{Rx, Tx, Urx, Utx};
@@ -107,30 +105,24 @@ impl StdioNode {
   }
 }
 
-struct StdioNodeCore {
+#[derive(Clone)]
+pub struct StdioNodeHandle {
   tx: Tx,
   stop_tx: Utx,
 }
 
-#[derive(Clone)]
-pub struct StdioNodeHandle {
-  core: Arc<Mutex<StdioNodeCore>>,
-}
-
 impl StdioNodeHandle {
   fn new(tx: Tx, stop_tx: Utx) -> Self {
-    Self {
-      core: Arc::new(Mutex::new(StdioNodeCore { tx, stop_tx })),
-    }
+    Self { tx, stop_tx }
   }
 
   pub fn write(&self, data: Bytes) {
-    let core = self.core.clone();
-    tokio::spawn(async move { core.lock().await.tx.send(data).await });
+    let tx = self.tx.clone();
+    tokio::spawn(async move { tx.send(data).await });
   }
 
   pub fn stop(self) {
-    let core = self.core.clone();
-    tokio::spawn(async move { core.lock().await.stop_tx.send(()).await });
+    let stop_tx = self.stop_tx.clone();
+    tokio::spawn(async move { stop_tx.send(()).await });
   }
 }
