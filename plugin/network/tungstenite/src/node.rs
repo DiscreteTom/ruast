@@ -1,82 +1,85 @@
 use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
-use rua::{
-  impl_node,
-  model::{Brx, Btx, NodeEvent, ReaderNode, Rx, Tx, WriterNode},
-  node::MockNode,
-};
-use rua_macro::{ReaderNode, WriterNode};
-use tokio::{
-  net::TcpStream,
-  sync::{broadcast, mpsc},
-};
+use rua::model::{Rx, Urx, WritableStopperHandle};
+use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
-#[derive(ReaderNode, WriterNode, Debug)]
 pub struct WsNode {
+  handle: WritableStopperHandle,
   ws: WebSocketStream<TcpStream>,
-  tx: Tx,
   rx: Rx,
-  btx: Btx,
+  stop_rx: Urx,
+  msg_handler: Option<Box<dyn FnMut(Bytes) + Send>>,
 }
 
 impl WsNode {
-  pub fn new(ws: WebSocketStream<TcpStream>, write_buffer: usize, read_buffer: usize) -> Self {
-    let (tx, rx) = mpsc::channel(write_buffer);
-    let (btx, _) = broadcast::channel(read_buffer);
-    Self { ws, tx, rx, btx }
+  pub fn new(ws: WebSocketStream<TcpStream>, buffer: usize) -> Self {
+    let (tx, rx) = mpsc::channel(buffer);
+    let (stop_tx, stop_rx) = mpsc::channel(1);
+
+    Self {
+      ws,
+      rx,
+      stop_rx,
+      msg_handler: None,
+      handle: WritableStopperHandle::new(tx, stop_tx),
+    }
   }
 
-  pub fn spawn(self) -> MockNode {
+  pub fn on_msg(mut self, f: impl FnMut(Bytes) + 'static + Send) -> Self {
+    self.msg_handler = Some(Box::new(f));
+    self
+  }
+
+  pub fn handle(&self) -> WritableStopperHandle {
+    self.handle.clone()
+  }
+
+  pub fn spawn(self) -> WritableStopperHandle {
     let mut rx = self.rx;
-    let btx = self.btx.clone();
-    let (stop_tx, mut stop_rx) = mpsc::channel(1);
+    let mut stop_rx = self.stop_rx;
     let (mut writer, mut reader) = self.ws.split();
 
     // reader thread
-    tokio::spawn(async move {
-      loop {
-        tokio::select! {
-          next = reader.next() => {
-            match next {
-              Some(msg) => {
-                let msg = msg.expect("read websocket error");
-                if msg.is_close() {
-                  break;
-                } else {
-                  if btx.send(NodeEvent::Write(Bytes::from(msg.into_data()))).is_err(){
-                    break
+    if let Some(mut msg_handler) = self.msg_handler {
+      tokio::spawn(async move {
+        loop {
+          tokio::select! {
+            next = reader.next() => {
+              match next {
+                Some(msg) => {
+                  let msg = msg.expect("read websocket error");
+                  if msg.is_close() {
+                    break;
+                  } else {
+                    msg_handler(Bytes::from(msg.into_data()));
                   }
                 }
+                None => break,
               }
-              None => break,
+            }
+            Some(()) = stop_rx.recv() => {
+              break
             }
           }
-          _ = stop_rx.recv() => {
-            break
-          }
         }
-      }
-    });
+      });
+    }
 
     // writer thread
     tokio::spawn(async move {
       loop {
         match rx.recv().await {
           None => break,
-          Some(e) => match e {
-            NodeEvent::Stop => break,
-            NodeEvent::Write(data) => {
-              if writer.send(Message::Binary(data.to_vec())).await.is_err() {
-                break;
-              }
+          Some(data) => {
+            if writer.send(Message::Binary(data.to_vec())).await.is_err() {
+              break;
             }
-          },
+          }
         }
       }
-      stop_tx.send(()).await.ok();
     });
 
-    MockNode::new(self.btx, self.tx)
+    self.handle
   }
 }

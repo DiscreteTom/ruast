@@ -1,55 +1,65 @@
-use rua::model::Result;
-use tokio::net::TcpListener;
+use rua::model::{Result, StopperHandle, Urx};
+use tokio::{net::TcpListener, sync::mpsc};
 
 use crate::node::WsNode;
 
 pub struct WsListener {
   addr: String,
   node_write_buffer: usize,
-  node_read_buffer: usize,
-  peer_handler: Option<Box<dyn Fn(WsNode) + 'static + Send>>,
+  handle: StopperHandle,
+  stop_rx: Urx,
+  peer_handler: Option<Box<dyn FnMut(WsNode) + Send>>,
 }
 
 impl WsListener {
-  pub fn new(addr: String, node_write_buffer: usize, node_read_buffer: usize) -> Self {
+  pub fn new(addr: String, node_write_buffer: usize) -> Self {
+    let (stop_tx, stop_rx) = mpsc::channel(1);
     Self {
       addr,
+      stop_rx,
+      handle: StopperHandle::new(stop_tx),
       node_write_buffer,
-      node_read_buffer,
       peer_handler: None,
     }
   }
 
   pub fn default_with_addr(addr: String) -> Self {
-    Self::new(addr, 16, 16)
+    Self::new(addr, 16)
   }
 
   pub fn default() -> Self {
     Self::default_with_addr(String::from("127.0.0.1:8080"))
   }
 
-  pub fn peer_handler(mut self, f: impl Fn(WsNode) + 'static + Send) -> Self {
+  pub fn on_new_peer(mut self, f: impl FnMut(WsNode) + 'static + Send) -> Self {
     self.peer_handler = Some(Box::new(f));
     self
   }
 
   /// Return `Err` if bind address failed.
-  pub async fn spawn(self) -> Result<()> {
-    let peer_handler = self
+  pub async fn spawn(self) -> Result<StopperHandle> {
+    let mut peer_handler = self
       .peer_handler
       .ok_or("missing peer_handler when spawn WsListener")?;
     let server = TcpListener::bind(&self.addr).await?;
     let node_write_buffer = self.node_write_buffer;
-    let node_read_buffer = self.node_read_buffer;
+    let mut stop_rx = self.stop_rx;
 
     // start ws listener
     tokio::spawn(async move {
-      while let Ok((stream, _)) = server.accept().await {
-        let ws_stream = tokio_tungstenite::accept_async(stream).await.unwrap();
-        (peer_handler)(WsNode::new(ws_stream, node_write_buffer, node_read_buffer));
+      loop {
+        tokio::select! {
+          Ok((stream, _)) = server.accept() => {
+            let ws_stream = tokio_tungstenite::accept_async(stream).await.unwrap();
+            (peer_handler)(WsNode::new(ws_stream, node_write_buffer));
+          },
+          Some(()) = stop_rx.recv() => {
+            break
+          }
+        }
       }
     });
 
-    Ok(())
+    Ok(self.handle)
   }
 }
