@@ -54,7 +54,7 @@ impl Lockstep {
             current += 1;
             timeout += Duration::from_millis(step_length_ms);
           }
-          _ = stop_rx.recv() => {
+          Some(()) = stop_rx.recv() => {
             break
           }
         }
