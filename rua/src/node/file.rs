@@ -1,21 +1,24 @@
 use bytes::Bytes;
 use tokio::{io::AsyncWriteExt, sync::mpsc};
 
-use crate::model::{Result, Rx, Tx};
+use crate::model::{Result, Rx, Tx, Urx, Utx};
 
 pub struct FileNode {
   handle: FileNodeHandle,
   filename: Option<String>,
   rx: Rx,
+  stop_rx: Urx,
 }
 
 impl FileNode {
   pub fn new(buffer: usize) -> Self {
     let (tx, rx) = mpsc::channel(buffer);
+    let (stop_tx, stop_rx) = mpsc::channel(1);
 
     Self {
-      handle: FileNodeHandle::new(tx),
+      handle: FileNodeHandle::new(tx, stop_tx),
       filename: None,
+      stop_rx,
       rx,
     }
   }
@@ -45,27 +48,34 @@ impl FileNode {
       .open(&filename)
       .await?;
 
+    let mut stop_rx = self.stop_rx;
+
     // writer thread
     let mut rx = self.rx;
     tokio::spawn(async move {
       loop {
-        match rx.recv().await {
-          Some(data) => {
-            file
-              .write_all(&data)
-              .await
-              .expect("FileNode write data failed");
-            file
-              .write_all(b"\n")
-              .await
-              .expect("FileNode write \\n failed");
-            file
-              .sync_data()
-              .await
-              .expect("FileNode flush output failed");
+        tokio::select! {
+          data = rx.recv() => {
+            match data {
+              Some(data) => {
+                file
+                  .write_all(&data)
+                  .await
+                  .expect("FileNode write data failed");
+                file
+                  .write_all(b"\n")
+                  .await
+                  .expect("FileNode write \\n failed");
+                file
+                  .sync_data()
+                  .await
+                  .expect("FileNode flush output failed");
+              }
+              None => break,
+            }
           }
-          None => {
-            break;
+          Some(()) = stop_rx.recv() => {
+            break
           }
         }
       }
@@ -77,11 +87,12 @@ impl FileNode {
 #[derive(Clone)]
 pub struct FileNodeHandle {
   tx: Tx,
+  stop_tx: Utx,
 }
 
 impl FileNodeHandle {
-  fn new(tx: Tx) -> Self {
-    Self { tx }
+  fn new(tx: Tx, stop_tx: Utx) -> Self {
+    Self { tx, stop_tx }
   }
 
   pub fn write(&self, data: Bytes) {
@@ -89,5 +100,8 @@ impl FileNodeHandle {
     tokio::spawn(async move { tx.send(data).await });
   }
 
-  pub fn stop(self) {}
+  pub fn stop(self) {
+    let stop_tx = self.stop_tx;
+    tokio::spawn(async move { stop_tx.send(()).await });
+  }
 }

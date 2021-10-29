@@ -51,7 +51,7 @@ impl StdioNode {
 
         loop {
           tokio::select! {
-            _ = stop_rx.recv() => {
+            Some(()) = stop_rx.recv() => {
               break
             }
             b = stdin.read_u8() => {
