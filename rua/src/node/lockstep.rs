@@ -5,13 +5,13 @@ use tokio::{
   time::{self, Instant},
 };
 
-use crate::model::{Result, Urx, Utx};
+use crate::model::{Result, StopperHandle, Urx};
 
 pub struct Lockstep {
   step_handler: Option<Box<dyn Fn(u64) + Send>>,
   step_length_ms: u64,
   stop_rx: Urx,
-  handle: LockstepHandle,
+  handle: StopperHandle,
 }
 
 impl Lockstep {
@@ -22,7 +22,7 @@ impl Lockstep {
       stop_rx,
       step_handler: None,
       step_length_ms: 1000,
-      handle: LockstepHandle::new(stop_tx),
+      handle: StopperHandle::new(stop_tx),
     }
   }
 
@@ -36,7 +36,7 @@ impl Lockstep {
     self
   }
 
-  pub fn spawn(self) -> Result<LockstepHandle> {
+  pub fn spawn(self) -> Result<StopperHandle> {
     let step_handler = self
       .step_handler
       .ok_or("missing step handler when build LsNode")?;
@@ -61,20 +61,5 @@ impl Lockstep {
       }
     });
     Ok(self.handle)
-  }
-}
-
-#[derive(Clone)]
-pub struct LockstepHandle {
-  stop_tx: Utx,
-}
-
-impl LockstepHandle {
-  fn new(stop_tx: Utx) -> Self {
-    Self { stop_tx }
-  }
-  pub fn stop(self) {
-    let stop_tx = self.stop_tx;
-    tokio::spawn(async move { stop_tx.send(()).await });
   }
 }

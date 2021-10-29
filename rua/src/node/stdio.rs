@@ -4,11 +4,11 @@ use tokio::{
   sync::mpsc,
 };
 
-use crate::model::{Rx, Tx, Urx, Utx};
+use crate::model::{Rx, Urx, WritableStopperHandle};
 
 pub struct StdioNode {
   msg_handler: Option<Box<dyn Fn(Bytes) + Send>>,
-  handle: StdioNodeHandle,
+  handle: WritableStopperHandle,
   rx: Rx,
   stop_rx: Urx,
 }
@@ -20,7 +20,7 @@ impl StdioNode {
 
     Self {
       msg_handler: None,
-      handle: StdioNodeHandle::new(tx, stop_tx),
+      handle: WritableStopperHandle::new(tx, stop_tx),
       rx,
       stop_rx,
     }
@@ -35,11 +35,11 @@ impl StdioNode {
     self
   }
 
-  pub fn handle(&self) -> StdioNodeHandle {
+  pub fn handle(&self) -> WritableStopperHandle {
     self.handle.clone()
   }
 
-  pub fn spawn(self) -> StdioNodeHandle {
+  pub fn spawn(self) -> WritableStopperHandle {
     let mut stop_rx = self.stop_rx;
     let mut rx = self.rx;
 
@@ -102,27 +102,5 @@ impl StdioNode {
     });
 
     self.handle
-  }
-}
-
-#[derive(Clone)]
-pub struct StdioNodeHandle {
-  tx: Tx,
-  stop_tx: Utx,
-}
-
-impl StdioNodeHandle {
-  fn new(tx: Tx, stop_tx: Utx) -> Self {
-    Self { tx, stop_tx }
-  }
-
-  pub fn write(&self, data: Bytes) {
-    let tx = self.tx.clone();
-    tokio::spawn(async move { tx.send(data).await });
-  }
-
-  pub fn stop(self) {
-    let stop_tx = self.stop_tx.clone();
-    tokio::spawn(async move { stop_tx.send(()).await });
   }
 }

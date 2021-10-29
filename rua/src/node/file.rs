@@ -1,10 +1,9 @@
-use bytes::Bytes;
 use tokio::{io::AsyncWriteExt, sync::mpsc};
 
-use crate::model::{Result, Rx, Tx, Urx, Utx};
+use crate::model::{Result, Rx, Urx, WritableStopperHandle};
 
 pub struct FileNode {
-  handle: FileNodeHandle,
+  handle: WritableStopperHandle,
   filename: Option<String>,
   rx: Rx,
   stop_rx: Urx,
@@ -16,7 +15,7 @@ impl FileNode {
     let (stop_tx, stop_rx) = mpsc::channel(1);
 
     Self {
-      handle: FileNodeHandle::new(tx, stop_tx),
+      handle: WritableStopperHandle::new(tx, stop_tx),
       filename: None,
       stop_rx,
       rx,
@@ -32,11 +31,11 @@ impl FileNode {
     self
   }
 
-  pub fn handle(&self) -> FileNodeHandle {
+  pub fn handle(&self) -> WritableStopperHandle {
     self.handle.clone()
   }
 
-  pub async fn spawn(self) -> Result<FileNodeHandle> {
+  pub async fn spawn(self) -> Result<WritableStopperHandle> {
     let filename = self
       .filename
       .ok_or("missing filename when build FileNode")?;
@@ -81,27 +80,5 @@ impl FileNode {
       }
     });
     Ok(self.handle)
-  }
-}
-
-#[derive(Clone)]
-pub struct FileNodeHandle {
-  tx: Tx,
-  stop_tx: Utx,
-}
-
-impl FileNodeHandle {
-  fn new(tx: Tx, stop_tx: Utx) -> Self {
-    Self { tx, stop_tx }
-  }
-
-  pub fn write(&self, data: Bytes) {
-    let tx = self.tx.clone();
-    tokio::spawn(async move { tx.send(data).await });
-  }
-
-  pub fn stop(self) {
-    let stop_tx = self.stop_tx;
-    tokio::spawn(async move { stop_tx.send(()).await });
   }
 }
