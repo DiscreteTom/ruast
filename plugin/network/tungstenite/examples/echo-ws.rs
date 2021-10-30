@@ -1,11 +1,12 @@
-use rua::model::Writable;
+use rua::model::{Stoppable, Writable};
 use rua::node::broadcast::StoppableBcNode;
 use rua::node::{Ctrlc, StdioNode};
 use rua_tungstenite::listener::WsListener;
 
 #[tokio::main]
 pub async fn main() {
-  // broadcaster
+  // stoppable broadcaster
+  // stop bc will stop all targets
   let mut bc = StoppableBcNode::default();
 
   // stdio
@@ -20,6 +21,7 @@ pub async fn main() {
   // websocket listener at 127.0.0.1:8080
   WsListener::default()
     .on_new_peer({
+      let mut bc = bc.clone();
       move |ws_node| {
         bc.add_target(ws_node.handle());
         ws_node
@@ -36,5 +38,6 @@ pub async fn main() {
 
   println!("WebSocket listener is running at ws://127.0.0.1:8080");
 
-  Ctrlc::new().wait().await;
+  // wait for ctrlc, stop all targets
+  Ctrlc::new().on_signal(move || bc.stop()).wait().await;
 }
