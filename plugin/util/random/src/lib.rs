@@ -1,13 +1,13 @@
 use bytes::Bytes;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use rua::model::{Result, StopperHandle, Urx};
+use rua::model::{Result, StoppableHandle, Urx};
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time;
 
 pub struct RandomNode {
-  handle: StopperHandle,
+  handle: StoppableHandle,
   stop_rx: Urx,
   msg_handler: Option<Box<dyn Fn(Bytes) + Send>>,
   nbyte: usize,
@@ -20,7 +20,7 @@ impl RandomNode {
     Self {
       stop_rx,
       msg_handler: None,
-      handle: StopperHandle::new(stop_tx),
+      handle: StoppableHandle::new(stop_tx),
       nbyte: 8,
       interval_ms: 200,
     }
@@ -41,7 +41,7 @@ impl RandomNode {
     self
   }
 
-  pub fn spawn(self) -> Result<StopperHandle> {
+  pub fn spawn(self) -> Result<StoppableHandle> {
     let handler = self
       .msg_handler
       .ok_or("missing handler when create RandomNode")?;

@@ -1,7 +1,7 @@
 use std::fmt;
 
 use bytes::Bytes;
-use rua_macro::{Stoppable, Writable};
+use rua_macro::{Stoppable, Writable, WritableStoppable};
 use tokio::sync::mpsc;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -16,27 +16,29 @@ pub trait Writable {
 }
 
 pub trait Stoppable {
-  fn stop(self);
+  fn stop(&self);
 }
 
+pub trait WritableStoppable: Writable + Stoppable {}
+
 #[derive(Clone, Stoppable)]
-pub struct StopperHandle {
+pub struct StoppableHandle {
   stop_tx: Utx,
 }
 
-impl StopperHandle {
+impl StoppableHandle {
   pub fn new(stop_tx: Utx) -> Self {
     Self { stop_tx }
   }
 }
 
-#[derive(Clone, Writable, Stoppable)]
-pub struct WritableStopperHandle {
+#[derive(Clone, Writable, Stoppable, WritableStoppable)]
+pub struct WritableStoppableHandle {
   tx: Tx,
   stop_tx: Utx,
 }
 
-impl WritableStopperHandle {
+impl WritableStoppableHandle {
   pub fn new(tx: Tx, stop_tx: Utx) -> Self {
     Self { tx, stop_tx }
   }

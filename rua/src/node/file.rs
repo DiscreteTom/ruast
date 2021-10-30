@@ -1,9 +1,9 @@
 use tokio::{io::AsyncWriteExt, sync::mpsc};
 
-use crate::model::{Result, Rx, Urx, WritableStopperHandle};
+use crate::model::{Result, Rx, Urx, WritableStoppableHandle};
 
 pub struct FileNode {
-  handle: WritableStopperHandle,
+  handle: WritableStoppableHandle,
   filename: Option<String>,
   rx: Rx,
   stop_rx: Urx,
@@ -15,7 +15,7 @@ impl FileNode {
     let (stop_tx, stop_rx) = mpsc::channel(1);
 
     Self {
-      handle: WritableStopperHandle::new(tx, stop_tx),
+      handle: WritableStoppableHandle::new(tx, stop_tx),
       filename: None,
       stop_rx,
       rx,
@@ -31,11 +31,11 @@ impl FileNode {
     self
   }
 
-  pub fn handle(&self) -> WritableStopperHandle {
+  pub fn handle(&self) -> WritableStoppableHandle {
     self.handle.clone()
   }
 
-  pub async fn spawn(self) -> Result<WritableStopperHandle> {
+  pub async fn spawn(self) -> Result<WritableStoppableHandle> {
     let filename = self
       .filename
       .ok_or("missing filename when build FileNode")?;

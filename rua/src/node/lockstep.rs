@@ -5,13 +5,13 @@ use tokio::{
   time::{self, Instant},
 };
 
-use crate::model::{Result, StopperHandle, Urx};
+use crate::model::{Result, StoppableHandle, Urx};
 
 pub struct Lockstep {
   step_handler: Option<Box<dyn FnMut(u64) + Send>>,
   step_length_ms: u64,
   stop_rx: Urx,
-  handle: StopperHandle,
+  handle: StoppableHandle,
 }
 
 impl Lockstep {
@@ -22,7 +22,7 @@ impl Lockstep {
       stop_rx,
       step_handler: None,
       step_length_ms: 1000,
-      handle: StopperHandle::new(stop_tx),
+      handle: StoppableHandle::new(stop_tx),
     }
   }
 
@@ -36,7 +36,7 @@ impl Lockstep {
     self
   }
 
-  pub fn spawn(self) -> Result<StopperHandle> {
+  pub fn spawn(self) -> Result<StoppableHandle> {
     let mut step_handler = self
       .step_handler
       .ok_or("missing step handler when build LsNode")?;

@@ -4,11 +4,11 @@ use tokio::{
   sync::mpsc,
 };
 
-use crate::model::{Rx, Urx, WritableStopperHandle};
+use crate::model::{Rx, Urx, WritableStoppableHandle};
 
 pub struct StdioNode {
   msg_handler: Option<Box<dyn FnMut(Bytes) + Send>>,
-  handle: WritableStopperHandle,
+  handle: WritableStoppableHandle,
   rx: Rx,
   stop_rx: Urx,
 }
@@ -20,7 +20,7 @@ impl StdioNode {
 
     Self {
       msg_handler: None,
-      handle: WritableStopperHandle::new(tx, stop_tx),
+      handle: WritableStoppableHandle::new(tx, stop_tx),
       rx,
       stop_rx,
     }
@@ -35,11 +35,11 @@ impl StdioNode {
     self
   }
 
-  pub fn handle(&self) -> WritableStopperHandle {
+  pub fn handle(&self) -> WritableStoppableHandle {
     self.handle.clone()
   }
 
-  pub fn spawn(self) -> WritableStopperHandle {
+  pub fn spawn(self) -> WritableStoppableHandle {
     let mut stop_rx = self.stop_rx;
     let mut rx = self.rx;
 

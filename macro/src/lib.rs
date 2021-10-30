@@ -31,11 +31,22 @@ pub fn stoppable_derive(input: TokenStream) -> TokenStream {
 
   let gen = quote! {
     impl Stoppable for #name {
-      fn stop(self) {
+      fn stop(&self) {
         let stop_tx = self.stop_tx.clone();
         tokio::spawn(async move { stop_tx.send(()).await });
       }
     }
+  };
+  gen.into()
+}
+
+#[proc_macro_derive(WritableStoppable)]
+pub fn writable_stoppable_derive(input: TokenStream) -> TokenStream {
+  let ast: DeriveInput = syn::parse(input).unwrap();
+  let name = &ast.ident;
+
+  let gen = quote! {
+    impl WritableStoppable for #name {}
   };
   gen.into()
 }

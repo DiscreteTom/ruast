@@ -1,11 +1,11 @@
 use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
-use rua::model::{Rx, Urx, WritableStopperHandle};
+use rua::model::{Rx, Urx, WritableStoppableHandle};
 use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
 pub struct WsNode {
-  handle: WritableStopperHandle,
+  handle: WritableStoppableHandle,
   ws: WebSocketStream<TcpStream>,
   rx: Rx,
   stop_rx: Urx,
@@ -22,7 +22,7 @@ impl WsNode {
       rx,
       stop_rx,
       msg_handler: None,
-      handle: WritableStopperHandle::new(tx, stop_tx),
+      handle: WritableStoppableHandle::new(tx, stop_tx),
     }
   }
 
@@ -31,11 +31,11 @@ impl WsNode {
     self
   }
 
-  pub fn handle(&self) -> WritableStopperHandle {
+  pub fn handle(&self) -> WritableStoppableHandle {
     self.handle.clone()
   }
 
-  pub fn spawn(self) -> WritableStopperHandle {
+  pub fn spawn(self) -> WritableStoppableHandle {
     let mut rx = self.rx;
     let mut stop_rx = self.stop_rx;
     let (mut writer, mut reader) = self.ws.split();

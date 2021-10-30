@@ -1,11 +1,12 @@
 use rua::model::Writable;
-use rua::node::{broadcast::BcNode, Ctrlc, StdioNode};
+use rua::node::broadcast::StoppableBcNode;
+use rua::node::{Ctrlc, StdioNode};
 use rua_tungstenite::listener::WsListener;
 
 #[tokio::main]
 pub async fn main() {
   // broadcaster
-  let mut bc = BcNode::default();
+  let mut bc = StoppableBcNode::default();
 
   // stdio
   let stdio = StdioNode::default()

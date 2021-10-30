@@ -1,4 +1,4 @@
-use rua::model::{Result, StopperHandle, Urx};
+use rua::model::{Result, StoppableHandle, Urx};
 use tokio::{net::TcpListener, sync::mpsc};
 
 use crate::node::WsNode;
@@ -6,7 +6,7 @@ use crate::node::WsNode;
 pub struct WsListener {
   addr: String,
   node_write_buffer: usize,
-  handle: StopperHandle,
+  handle: StoppableHandle,
   stop_rx: Urx,
   peer_handler: Option<Box<dyn FnMut(WsNode) + Send>>,
 }
@@ -17,7 +17,7 @@ impl WsListener {
     Self {
       addr,
       stop_rx,
-      handle: StopperHandle::new(stop_tx),
+      handle: StoppableHandle::new(stop_tx),
       node_write_buffer,
       peer_handler: None,
     }
@@ -37,7 +37,7 @@ impl WsListener {
   }
 
   /// Return `Err` if bind address failed.
-  pub async fn spawn(self) -> Result<StopperHandle> {
+  pub async fn spawn(self) -> Result<StoppableHandle> {
     let mut peer_handler = self
       .peer_handler
       .ok_or("missing peer_handler when spawn WsListener")?;
