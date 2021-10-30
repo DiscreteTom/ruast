@@ -9,41 +9,39 @@ The rust version of [Rua](https://github.com/DiscreteTom/rua)!
 Run a websocket broadcast server:
 
 ```rust
-use rua::model::Result;
-use rua::node::{BcNode, Ctrlc, StdioNode};
+use rua::model::{Stoppable, Writable};
+use rua::node::broadcast::StoppableBcNode;
+use rua::node::Ctrlc;
 use rua_tungstenite::listener::WsListener;
 
 #[tokio::main]
-pub async fn main() -> Result<()> {
-  // broadcaster
-  let bc = BcNode::default()
-    .propagate_stop(true) // stop bc will stop all targets
-    .spawn();
-
-  // stdio
-  StdioNode::default()
-    .publish(&bc) // stdin => bc
-    .subscribe(&bc) // bc => stdout
-    .spawn();
+pub async fn main() {
+  // stoppable broadcaster
+  // stop bc will stop all targets
+  let mut bc = StoppableBcNode::default();
 
   // websocket listener at 127.0.0.1:8080
-  {
-    let bc = bc.clone();
-    WsListener::default()
-      .peer_handler(move |ws_node| {
+  WsListener::default()
+    .on_new_peer({
+      let mut bc = bc.clone();
+      move |ws_node| {
+        bc.add_target(ws_node.handle());
         ws_node
-          .publish(&bc) // ws => bc
-          .subscribe(&bc) // bc => ws
+          .on_msg({
+            let bc = bc.clone();
+            move |data| bc.write(data).unwrap()
+          })
           .spawn();
-      })
-      .spawn()
-      .await?;
-    println!("WebSocket listener is running at ws://127.0.0.1:8080");
-  }
+      }
+    })
+    .spawn()
+    .await
+    .expect("WebSocket listener failed to bind address");
 
-  Ctrlc::new().publish(&bc).wait().await;
+  println!("WebSocket listener is running at ws://127.0.0.1:8080");
 
-  Ok(())
+  // wait for ctrlc, stop all targets
+  Ctrlc::new().on_signal(move || bc.stop()).wait().await;
 }
 ```
 
