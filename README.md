@@ -1,5 +1,8 @@
 # Ruast
 
+![GitHub](https://img.shields.io/github/license/DiscreteTom/ruast?style=flat-square)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/DiscreteTom/ruast?style=flat-square)
+
 Event driven async messaging framework.
 
 The rust version of [Rua](https://github.com/DiscreteTom/rua)!
