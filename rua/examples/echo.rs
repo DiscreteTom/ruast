@@ -7,7 +7,7 @@ use rua::{
 pub async fn main() {
   let stdio = StdioNode::new(16);
   let stdio_handle = stdio.handle();
-  let stdio = stdio.on_msg(move |msg| stdio_handle.write(msg));
+  let stdio = stdio.on_msg(move |msg| stdio_handle.write(msg).unwrap());
   let stdio_handle = stdio.spawn();
 
   Ctrlc::new()

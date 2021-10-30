@@ -29,7 +29,7 @@ pub async fn main() {
             buffer.extend_from_slice(&(step.to_string() + ":\n").into_bytes());
             buffer.extend_from_slice(state);
             state.clear();
-            stdio.write(buffer.freeze())
+            stdio.write(buffer.freeze()).unwrap()
           }
         })
       }

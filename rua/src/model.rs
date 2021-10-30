@@ -1,3 +1,5 @@
+use std::fmt;
+
 use bytes::Bytes;
 use tokio::sync::mpsc;
 
@@ -9,7 +11,7 @@ pub type Utx = mpsc::Sender<()>;
 pub type Urx = mpsc::Receiver<()>;
 
 pub trait Writable {
-  fn write(&self, data: Bytes);
+  fn write(&self, data: Bytes) -> Result<()>;
 }
 
 pub trait Stoppable {
@@ -54,8 +56,27 @@ impl Stoppable for WritableStopperHandle {
 }
 
 impl Writable for WritableStopperHandle {
-  fn write(&self, data: Bytes) {
+  fn write(&self, data: Bytes) -> Result<()> {
     let tx = self.tx.clone();
+    if tx.is_closed() {
+      return Err(Box::new(Error::WriteToClosedChannel));
+    }
     tokio::spawn(async move { tx.send(data).await });
+    Ok(())
   }
 }
+
+#[derive(Debug)]
+pub enum Error {
+  WriteToClosedChannel,
+}
+
+impl fmt::Display for Error {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    match self {
+      Error::WriteToClosedChannel => write!(f, "write to closed channel"),
+    }
+  }
+}
+
+impl std::error::Error for Error {}

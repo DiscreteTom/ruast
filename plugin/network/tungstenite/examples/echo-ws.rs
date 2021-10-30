@@ -11,7 +11,7 @@ pub async fn main() {
   let stdio = StdioNode::default()
     .on_msg({
       let bc = bc.clone();
-      move |data| bc.write(data)
+      move |data| bc.write(data).unwrap()
     })
     .spawn();
   bc.add_target(stdio);
@@ -24,7 +24,7 @@ pub async fn main() {
         ws_node
           .on_msg({
             let bc = bc.clone();
-            move |data| bc.write(data)
+            move |data| bc.write(data).unwrap()
           })
           .spawn();
       }

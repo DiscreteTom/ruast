@@ -14,7 +14,7 @@ pub async fn main() {
   let stdio = StdioNode::default()
     .on_msg({
       let file = file.clone();
-      move |msg| file.write(msg)
+      move |msg| file.write(msg).unwrap()
     })
     .spawn();
 

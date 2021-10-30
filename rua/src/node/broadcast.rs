@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use tokio::sync::mpsc::{self, Sender};
 
-use crate::model::{Rx, Tx, Writable};
+use crate::model::{Error, Result, Rx, Tx, Writable};
 
 #[derive(Clone)]
 pub struct BcNode {
@@ -22,8 +22,15 @@ impl BcNode {
           data = rx.recv() => {
             match data {
               Some(data) => {
-                for node in &targets {
-                  node.write(data.clone());
+                let mut dead_nodes = Vec::new();
+                for (i, node) in targets.iter().enumerate() {
+                  if node.write(data.clone()).is_err() {
+                    dead_nodes.push(i);
+                  }
+                }
+                // clean dead nodes
+                while let Some(i) = dead_nodes.pop() {
+                  targets.remove(i);
                 }
               }
               None => break
@@ -50,8 +57,14 @@ impl BcNode {
 }
 
 impl Writable for BcNode {
-  fn write(&self, data: Bytes) {
+  fn write(&self, data: Bytes) -> Result<()> {
     let tx = self.tx.clone();
+    if tx.is_closed() {
+      return Err(Box::new(Error::WriteToClosedChannel));
+    }
     tokio::spawn(async move { tx.send(data).await });
+    Ok(())
   }
 }
+
+// Stoppable Bc

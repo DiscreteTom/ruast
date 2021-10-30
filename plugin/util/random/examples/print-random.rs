@@ -13,7 +13,7 @@ pub async fn main() -> Result<()> {
   let rand = RandomNode::new()
     .on_msg({
       let stdio = stdio.clone();
-      move |data| stdio.write(data)
+      move |data| stdio.write(data).unwrap()
     })
     .spawn()
     .expect("failed to create RandomNode");
