@@ -1,9 +1,10 @@
 use bytes::Bytes;
+use rua_macro::Writable;
 use tokio::sync::mpsc::{self, Sender};
 
 use crate::model::{Error, Result, Rx, Tx, Writable};
 
-#[derive(Clone)]
+#[derive(Clone, Writable)]
 pub struct BcNode {
   tx: Tx,
   node_tx: Sender<Box<dyn Writable + Send>>,
@@ -53,17 +54,6 @@ impl BcNode {
   pub fn add_target(&mut self, t: impl Writable + 'static + Send) {
     let node_tx = self.node_tx.clone();
     tokio::spawn(async move { node_tx.send(Box::new(t)).await });
-  }
-}
-
-impl Writable for BcNode {
-  fn write(&self, data: Bytes) -> Result<()> {
-    let tx = self.tx.clone();
-    if tx.is_closed() {
-      return Err(Box::new(Error::WriteToClosedChannel));
-    }
-    tokio::spawn(async move { tx.send(data).await });
-    Ok(())
   }
 }
 

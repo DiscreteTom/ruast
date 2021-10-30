@@ -4,35 +4,37 @@ use crate::proc_macro::TokenStream;
 use quote::quote;
 use syn::{self, DeriveInput};
 
-#[proc_macro_derive(ReaderNode)]
-pub fn reader_node_derive(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(Writable)]
+pub fn writable_derive(input: TokenStream) -> TokenStream {
   let ast: DeriveInput = syn::parse(input).unwrap();
   let name = &ast.ident;
 
   let gen = quote! {
-    impl ReaderNode for #name {
-      impl_node!(brx);
-    }
-
-    impl #name {
-      impl_node!(publish);
+    impl Writable for #name {
+      fn write(&self, data: Bytes) -> Result<()> {
+        let tx = self.tx.clone();
+        if tx.is_closed() {
+          return Err(Box::new(Error::WriteToClosedChannel));
+        }
+        tokio::spawn(async move { tx.send(data).await });
+        Ok(())
+      }
     }
   };
   gen.into()
 }
 
-#[proc_macro_derive(WriterNode)]
-pub fn writer_node_derive(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(Stoppable)]
+pub fn stoppable_derive(input: TokenStream) -> TokenStream {
   let ast: DeriveInput = syn::parse(input).unwrap();
   let name = &ast.ident;
 
   let gen = quote! {
-    impl WriterNode for #name {
-      impl_node!(tx);
-    }
-
-    impl #name {
-      impl_node!(subscribe);
+    impl Stoppable for #name {
+      fn stop(self) {
+        let stop_tx = self.stop_tx.clone();
+        tokio::spawn(async move { stop_tx.send(()).await });
+      }
     }
   };
   gen.into()
