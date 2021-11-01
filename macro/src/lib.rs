@@ -33,7 +33,7 @@ pub fn stoppable_derive(input: TokenStream) -> TokenStream {
     impl Stoppable for #name {
       fn stop(&self) {
         let stop_tx = self.stop_tx.clone();
-        tokio::spawn(async move { stop_tx.send(()).await });
+        tokio::spawn(async move { stop_tx.send(()).await.ok() });
       }
     }
   };
