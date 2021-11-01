@@ -6,6 +6,8 @@ use tokio::{
 
 use crate::model::{Rx, Urx, WritableStoppableHandle};
 
+/// StdioNode is useful to print messages to stdout.
+/// If you use `on_msg` to register an stdin message handler, you may need to press Enter after you press Ctrl-C.
 pub struct StdioNode {
   msg_handler: Option<Box<dyn FnMut(Bytes) + Send>>,
   handle: WritableStoppableHandle,
@@ -55,8 +57,8 @@ impl StdioNode {
               break
             }
             b = stdin.read_u8() => {
-              match b{
-                Ok(b)=>{
+              match b {
+                Ok(b) => {
                   if b == b'\n' {
                     // handle msg
                     (msg_handler)(buffer.freeze());
@@ -70,9 +72,7 @@ impl StdioNode {
                     buffer.put_u8(b);
                   }
                 }
-                Err(_)=>{
-                  break;
-                }
+                Err(_) => break,
               }
             }
           }
