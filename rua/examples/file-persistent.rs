@@ -23,5 +23,6 @@ pub async fn main() {
       stdio.stop();
       file.stop()
     })
-    .wait().await;
+    .wait()
+    .await;
 }
