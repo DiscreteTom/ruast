@@ -1,3 +1,4 @@
+use clonesure::cc;
 use rua::{
   model::{Result, Stoppable, Writable},
   node::{ctrlc::Ctrlc, stdio::StdioNode},
@@ -11,10 +12,7 @@ pub async fn main() -> Result<()> {
 
   // generate random alphanumeric bytes
   let rand = RandomNode::new()
-    .on_msg({
-      let stdio = stdio.clone();
-      move |data| stdio.write(data).unwrap()
-    })
+    .on_msg(cc!(|@stdio, data| stdio.write(data).unwrap()))
     .spawn()
     .expect("failed to create RandomNode");
 

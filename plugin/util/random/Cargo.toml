@@ -10,3 +10,6 @@ rua-macro = { path = "../../../macro" }
 tokio = { version = "1.12.0", features = ["full"] }
 bytes = "1"
 rand = "0.8.4"
+
+[dev-dependencies]
+clonesure = "0.3.0"

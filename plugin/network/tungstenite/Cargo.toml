@@ -11,3 +11,6 @@ tokio = { version = "1.12.0", features = ["full"] }
 tokio-tungstenite = "*"
 futures-util = "0.3.17"
 bytes = "1"
+
+[dev-dependencies]
+clonesure = "0.3.0"

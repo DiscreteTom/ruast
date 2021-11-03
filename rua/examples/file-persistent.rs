@@ -1,3 +1,4 @@
+use clonesure::cc;
 use rua::{
   model::{Stoppable, Writable},
   node::{ctrlc::Ctrlc, file::FileNode, stdio::StdioNode},
@@ -12,10 +13,7 @@ pub async fn main() {
     .expect("failed to create file peer");
 
   let stdio = StdioNode::default()
-    .on_msg({
-      let file = file.clone();
-      move |msg| file.write(msg).unwrap()
-    })
+    .on_msg(cc!(|@file, msg| file.write(msg).unwrap()))
     .spawn();
 
   Ctrlc::new()
