@@ -29,35 +29,32 @@ edition = "2018"
 tokio = { version = "1.12.0", features = ["full"] }
 rua = { git = "https://github.com/DiscreteTom/ruast" }
 rua-tungstenite = { git = "https://github.com/DiscreteTom/ruast" }
+clonesure = "0.3.0"
 ```
 
 ```rust
 // main.rs
-use rua::model::{Stoppable, Writable};
-use rua::node::broadcast::StoppableBcNode;
-use rua::node::Ctrlc;
+use clonesure::cc;
+use rua::{
+  model::{Stoppable, Writable},
+  node::{broadcast::StoppableBcNode, Ctrlc, StdioNode},
+};
 use rua_tungstenite::listener::WsListener;
 
 #[tokio::main]
 pub async fn main() {
   // stoppable broadcaster
   // stop bc will stop all targets
-  let bc = StoppableBcNode::default();
+  let mut bc = StoppableBcNode::default();
 
   // websocket listener at 127.0.0.1:8080
   WsListener::default()
-    .on_new_peer({
-      let mut bc = bc.clone();
-      move |ws_node| {
-        bc.add_target(ws_node.handle());
-        ws_node
-          .on_msg({
-            let bc = bc.clone();
-            move |data| bc.write(data).unwrap()
-          })
-          .spawn();
-      }
-    })
+    .on_new_peer(cc!(|@mut bc, ws_node| {
+      bc.add_target(ws_node.handle());
+      ws_node
+        .on_msg(cc!(|@bc, data| bc.write(data).unwrap()))
+        .spawn();
+    }))
     .spawn()
     .await
     .expect("WebSocket listener failed to bind address");
