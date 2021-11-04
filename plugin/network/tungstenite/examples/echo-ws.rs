@@ -1,7 +1,8 @@
 use clonesure::cc;
-use rua::model::{Stoppable, Writable};
-use rua::node::broadcast::StoppableBcNode;
-use rua::node::{Ctrlc, StdioNode};
+use rua::{
+  model::{Stoppable, Writable},
+  node::{broadcast::StoppableBcNode, Ctrlc, StdioNode},
+};
 use rua_tungstenite::listener::WsListener;
 
 #[tokio::main]
