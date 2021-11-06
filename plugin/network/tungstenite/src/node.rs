@@ -1,28 +1,36 @@
+use std::net::SocketAddr;
+
 use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
-use rua::model::{Rx, Urx, WritableStoppableHandle};
+use rua::model::{Handle, HandleBuilder, StopRx, WriteRx};
 use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
 pub struct WsNode {
-  handle: WritableStoppableHandle,
+  handle: Handle,
   ws: WebSocketStream<TcpStream>,
-  rx: Rx,
-  stop_rx: Urx,
+  addr: SocketAddr,
+  rx: WriteRx,
+  stop_rx: StopRx,
   msg_handler: Option<Box<dyn FnMut(Bytes) + Send>>,
 }
 
 impl WsNode {
-  pub fn new(ws: WebSocketStream<TcpStream>, buffer: usize) -> Self {
+  pub fn new(ws: WebSocketStream<TcpStream>, buffer: usize, addr: SocketAddr) -> Self {
     let (tx, rx) = mpsc::channel(buffer);
     let (stop_tx, stop_rx) = mpsc::channel(1);
 
     Self {
       ws,
       rx,
+      addr,
       stop_rx,
       msg_handler: None,
-      handle: WritableStoppableHandle::new(tx, stop_tx),
+      handle: HandleBuilder::default()
+        .tx(tx)
+        .stop_tx(stop_tx)
+        .build()
+        .unwrap(),
     }
   }
 
@@ -31,14 +39,32 @@ impl WsNode {
     self
   }
 
-  pub fn handle(&self) -> WritableStoppableHandle {
-    self.handle.clone()
+  pub fn handle(&self) -> &Handle {
+    &self.handle
   }
 
-  pub fn spawn(self) -> WritableStoppableHandle {
-    let mut rx = self.rx;
+  pub fn addr(&self) -> &SocketAddr {
+    &self.addr
+  }
+
+  pub fn spawn(self) -> Handle {
     let mut stop_rx = self.stop_rx;
+    let mut rx = self.rx;
+    let (reader_stop_tx, mut reader_stop_rx) = mpsc::channel(1);
+    let (writer_stop_tx, mut writer_stop_rx) = mpsc::channel(1);
     let (mut writer, mut reader) = self.ws.split();
+
+    // stopper thread
+    tokio::spawn(async move {
+      if let Some(payload) = stop_rx.recv().await {
+        reader_stop_tx.send(()).await.ok();
+        writer_stop_tx.send(()).await.ok();
+        (payload.callback)(Ok(()));
+      }
+      // else, all stop_tx are dropped, stop_rx is disabled
+
+      // stop_rx is dropped, later stop_tx.send will throw ChannelClosed error.
+    });
 
     // reader thread
     if let Some(mut msg_handler) = self.msg_handler {
@@ -58,7 +84,7 @@ impl WsNode {
                 None => break,
               }
             }
-            Some(()) = stop_rx.recv() => {
+            Some(()) = reader_stop_rx.recv() => {
               break
             }
           }
@@ -69,11 +95,21 @@ impl WsNode {
     // writer thread
     tokio::spawn(async move {
       loop {
-        match rx.recv().await {
-          None => break,
-          Some(data) => {
-            if writer.send(Message::Binary(data.to_vec())).await.is_err() {
-              break;
+        tokio::select! {
+          Some(()) = writer_stop_rx.recv() => {
+            break
+          }
+          payload = rx.recv() => {
+            if let Some(payload) = payload {
+              let result =  writer.send(Message::Binary(payload.data.to_vec())).await;
+              if let Err(e) = result {
+                (payload.callback)(Err(Box::new(e)));
+                break
+              } else {
+                (payload.callback)(Ok(()));
+              }
+            } else {
+              break
             }
           }
         }
