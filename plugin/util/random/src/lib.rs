@@ -1,31 +1,36 @@
 use bytes::Bytes;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use rua::model::{Result, StoppableHandle, Urx};
+use rua::model::{GeneralResult, HandleBuilder, StopOnlyHandle, StopRx};
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time;
 
 pub struct RandomNode {
-  handle: StoppableHandle,
-  stop_rx: Urx,
+  handle: StopOnlyHandle,
+  stop_rx: StopRx,
   msg_handler: Option<Box<dyn Fn(Bytes) + Send>>,
   nbyte: usize,
   interval_ms: u64,
 }
 
-impl RandomNode {
-  pub fn new() -> Self {
+impl Default for RandomNode {
+  fn default() -> Self {
     let (stop_tx, stop_rx) = mpsc::channel(1);
     Self {
       stop_rx,
       msg_handler: None,
-      handle: StoppableHandle::new(stop_tx),
+      handle: HandleBuilder::default()
+        .stop_tx(stop_tx)
+        .build_stop_only()
+        .unwrap(),
       nbyte: 8,
       interval_ms: 200,
     }
   }
+}
 
+impl RandomNode {
   pub fn nbyte(mut self, n: usize) -> Self {
     self.nbyte = n;
     self
@@ -41,7 +46,12 @@ impl RandomNode {
     self
   }
 
-  pub fn spawn(self) -> Result<StoppableHandle> {
+  pub fn handle(&self) -> &StopOnlyHandle {
+    &self.handle
+  }
+
+  /// Return `Err` if missing `msg_handler`.
+  pub fn spawn(self) -> GeneralResult<StopOnlyHandle> {
     let handler = self
       .msg_handler
       .ok_or("missing handler when create RandomNode")?;
@@ -52,7 +62,8 @@ impl RandomNode {
     tokio::spawn(async move {
       loop {
         tokio::select! {
-          _ = stop_rx.recv() => {
+          Some(payload) = stop_rx.recv() => {
+            (payload.callback)(Ok(()));
             break
           }
           _ = time::sleep(Duration::from_millis(interval_ms)) => {

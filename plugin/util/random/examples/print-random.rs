@@ -1,28 +1,24 @@
 use clonesure::cc;
-use rua::{
-  model::{Result, Stoppable, Writable},
-  node::{ctrlc::Ctrlc, stdio::StdioNode},
-};
+use rua::node::{ctrlc::Ctrlc, stdio::StdioNode};
 use rua_random::RandomNode;
 
 #[tokio::main]
-pub async fn main() -> Result<()> {
+pub async fn main() {
   // use stdout
   let stdio = StdioNode::default().spawn();
 
   // generate random alphanumeric bytes
-  let rand = RandomNode::new()
-    .on_msg(cc!(|@stdio, data| stdio.write(data).unwrap()))
+  let rand = RandomNode::default()
+    .on_msg(cc!(|@stdio, data| stdio.write(data)))
     .spawn()
-    .expect("failed to create RandomNode");
+    .unwrap();
 
-  Ctrlc::new()
+  Ctrlc::default()
     .on_signal(move || {
       stdio.stop();
       rand.stop();
     })
     .wait()
-    .await;
-
-  Ok(())
+    .await
+    .expect("failed to listen for ctrlc");
 }
