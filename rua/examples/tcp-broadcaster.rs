@@ -1,6 +1,7 @@
 use clonesure::cc;
 use rua::node::{ctrlc::Ctrlc, stdio::StdioNode, tcp::TcpListener, Broadcaster};
 
+/// Use `nc localhost 8080` to connect to the tcp server.
 #[tokio::main]
 pub async fn main() {
   let mut bc = Broadcaster::default();
