@@ -1,123 +1,115 @@
+use std::sync::Arc;
+
 use bytes::Bytes;
-use rua_macro::{Stoppable, Writable, WritableStoppable};
-use tokio::sync::mpsc::{self, Sender};
+use tokio::sync::{
+  mpsc::{self, Sender},
+  Mutex,
+};
 
-use crate::model::{Error, Result, Rx, Stoppable, Tx, Utx, Writable, WritableStoppable};
+use crate::model::{GeneralResult, Handle, HandleBuilder, StopTx, WriteRx, WriteTx};
 
-#[derive(Clone, Writable)]
-pub struct BcNode {
-  tx: Tx,
-  node_tx: Sender<Box<dyn Writable + Send>>,
+#[derive(Clone, Default)]
+pub struct Broadcaster {
+  timeout_ms: Option<u64>,
+  targets: Arc<Mutex<Vec<Handle>>>,
+  propagate_stop: bool,
 }
 
-impl BcNode {
-  pub fn new(buffer: usize) -> Self {
-    let (tx, mut rx): (Tx, Rx) = mpsc::channel(buffer);
-    let (node_tx, mut node_rx) = mpsc::channel(1);
+impl Broadcaster {
+  pub fn propagate_stop(mut self, enable: bool) -> Self {
+    self.propagate_stop = enable;
+    self
+  }
 
+  pub fn add_target(&self, handle: Handle) {
+    let targets = self.targets.clone();
+    tokio::spawn(async move { targets.lock().await.push(handle) });
+  }
+
+  pub fn add_target_then<F>(&self, handle: Handle, callback: F)
+  where
+    F: Fn() + Send + Sync + 'static,
+  {
+    let targets = self.targets.clone();
     tokio::spawn(async move {
-      let mut targets: Vec<Box<dyn Writable + Send>> = Vec::new();
+      targets.lock().await.push(handle);
+      callback()
+    });
+  }
 
-      loop {
-        tokio::select! {
-          data = rx.recv() => {
-            match data {
-              Some(data) => {
-                let mut dead_nodes = Vec::new();
-                for (i, node) in targets.iter().enumerate() {
-                  if node.write(data.clone()).is_err() {
-                    dead_nodes.push(i);
-                  }
-                }
-                // clean dead nodes
-                while let Some(i) = dead_nodes.pop() {
-                  targets.remove(i);
-                }
-              }
-              None => break
-            }
-          }
-          Some(node) = node_rx.recv() => {
-            targets.push(node);
-          }
+  /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
+  pub fn write(&self, data: Bytes) {
+    let targets = self.targets.clone();
+    Self::inner_write(targets, data, self.timeout_ms, |_| {})
+  }
+
+  /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
+  pub fn write_then<F>(&self, data: Bytes, callback: F)
+  where
+    F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
+  {
+    let targets = self.targets.clone();
+    Self::inner_write(targets, data, self.timeout_ms, callback)
+  }
+
+  /// Override the default timeout.
+  /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
+  pub fn timed_write(&self, data: Bytes, timeout_ms: u64) {
+    let targets = self.targets.clone();
+    Self::inner_write(targets, data, Some(timeout_ms), |_| {})
+  }
+
+  /// Override the default timeout.
+  /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
+  pub fn timed_write_then<F>(&self, data: Bytes, timeout_ms: u64, callback: F)
+  where
+    F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
+  {
+    let targets = self.targets.clone();
+    Self::inner_write(targets, data, Some(timeout_ms), callback)
+  }
+
+  fn inner_write<F>(
+    targets: Arc<Mutex<Vec<Handle>>>,
+    data: Bytes,
+    timeout_ms: Option<u64>,
+    callback: F,
+  ) where
+    F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
+  {
+    tokio::spawn(async move {
+      for handle in targets.lock().await.iter() {
+        if let Some(timeout_ms) = timeout_ms {
+          handle.timed_write_then(data.clone(), timeout_ms.clone(), callback.clone());
+        } else {
+          handle.write_then(data.clone(), callback.clone());
         }
       }
     });
-
-    Self { tx, node_tx }
   }
 
-  pub fn default() -> Self {
-    Self::new(16)
-  }
-
-  pub fn add_target(&mut self, t: impl Writable + 'static + Send) {
-    let node_tx = self.node_tx.clone();
-    tokio::spawn(async move { node_tx.send(Box::new(t)).await });
-  }
-}
-
-#[derive(Clone, Writable, Stoppable, WritableStoppable)]
-pub struct StoppableBcNode {
-  tx: Tx,
-  stop_tx: Utx,
-  node_tx: Sender<Box<dyn WritableStoppable + Send>>,
-}
-
-impl StoppableBcNode {
-  pub fn new(buffer: usize) -> Self {
-    let (tx, mut rx): (Tx, Rx) = mpsc::channel(buffer);
-    let (stop_tx, mut stop_rx) = mpsc::channel(1);
-    let (node_tx, mut node_rx) = mpsc::channel(1);
-
-    tokio::spawn(async move {
-      let mut targets: Vec<Box<dyn WritableStoppable + Send>> = Vec::new();
-
-      loop {
-        tokio::select! {
-          data = rx.recv() => {
-            match data {
-              Some(data) => {
-                let mut dead_nodes = Vec::new();
-                for (i, node) in targets.iter().enumerate() {
-                  if node.write(data.clone()).is_err() {
-                    dead_nodes.push(i);
-                  }
-                }
-                // clean dead nodes
-                while let Some(i) = dead_nodes.pop() {
-                  targets.remove(i);
-                }
-              }
-              None => break
-            }
-          }
-          Some(node) = node_rx.recv() => {
-            targets.push(node);
-          }
-          Some(()) = stop_rx.recv() => {
-            for node in targets {
-              node.stop();
-            }
-            break
-          }
+  pub fn stop(self) {
+    if self.propagate_stop {
+      let targets = self.targets;
+      tokio::spawn(async move {
+        while let Some(handle) = targets.lock().await.pop() {
+          handle.stop();
         }
-      }
-    });
-
-    Self {
-      tx,
-      node_tx,
-      stop_tx,
+      });
     }
   }
 
-  pub fn default() -> Self {
-    Self::new(16)
-  }
-
-  pub fn add_target(&mut self, t: impl WritableStoppable + 'static + Send) {
-    let node_tx = self.node_tx.clone();
-    tokio::spawn(async move { node_tx.send(Box::new(t)).await });
+  pub fn stop_then<F>(self, callback: F)
+  where
+    F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
+  {
+    if self.propagate_stop {
+      let targets = self.targets;
+      tokio::spawn(async move {
+        while let Some(handle) = targets.lock().await.pop() {
+          handle.stop_then(callback.clone());
+        }
+      });
+    }
   }
 }
