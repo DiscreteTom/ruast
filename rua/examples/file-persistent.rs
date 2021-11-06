@@ -19,5 +19,6 @@ pub async fn main() {
       file.stop()
     })
     .wait()
-    .await;
+    .await
+    .expect("failed to listen for ctrlc");
 }

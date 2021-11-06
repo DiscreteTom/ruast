@@ -13,5 +13,6 @@ pub async fn main() {
   Ctrlc::default()
     .on_signal(move || handle.stop())
     .wait()
-    .await;
+    .await
+    .expect("failed to listen for ctrlc");
 }
