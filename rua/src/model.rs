@@ -220,6 +220,10 @@ impl Handle {
   {
     self.stop_only.stop_then(callback)
   }
+
+  pub fn stop_only_handle(&self) -> &StopOnlyHandle {
+    &self.stop_only
+  }
 }
 
 #[derive(Debug)]
