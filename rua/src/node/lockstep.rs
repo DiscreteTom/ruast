@@ -5,25 +5,38 @@ use tokio::{
   time::{self, Instant},
 };
 
-use crate::model::{Result, StoppableHandle, Urx};
+use crate::model::{GeneralResult, HandleBuilder, StopOnlyHandle, StopRx};
 
 pub struct Lockstep {
   step_handler: Option<Box<dyn FnMut(u64) + Send>>,
   step_length_ms: u64,
-  stop_rx: Urx,
-  handle: StoppableHandle,
+  stop_rx: StopRx,
+  handle: StopOnlyHandle,
+}
+
+impl Default for Lockstep {
+  fn default() -> Self {
+    Self::with_step_length_ms(1000)
+  }
 }
 
 impl Lockstep {
-  pub fn new() -> Self {
+  pub fn with_step_length_ms(ms: u64) -> Self {
     let (stop_tx, stop_rx) = mpsc::channel(1);
 
     Self {
       stop_rx,
       step_handler: None,
-      step_length_ms: 1000,
-      handle: StoppableHandle::new(stop_tx),
+      step_length_ms: ms,
+      handle: HandleBuilder::default()
+        .stop_tx(stop_tx)
+        .build_stop_only()
+        .unwrap(),
     }
+  }
+
+  pub fn handle(&self) -> &StopOnlyHandle {
+    &self.handle
   }
 
   pub fn step_length_ms(mut self, ms: u64) -> Self {
@@ -36,7 +49,7 @@ impl Lockstep {
     self
   }
 
-  pub fn spawn(self) -> Result<StoppableHandle> {
+  pub fn spawn(self) -> GeneralResult<StopOnlyHandle> {
     let mut step_handler = self
       .step_handler
       .ok_or("missing step handler when build LsNode")?;
@@ -54,7 +67,8 @@ impl Lockstep {
             current += 1;
             timeout += Duration::from_millis(step_length_ms);
           }
-          Some(()) = stop_rx.recv() => {
+          Some(payload) = stop_rx.recv() => {
+            (payload.callback)(Ok(()));
             break
           }
         }
