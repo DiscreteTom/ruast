@@ -10,12 +10,17 @@ pub struct Broadcaster {
   timeout_ms: Option<u64>,
   targets: Arc<Mutex<HashMap<usize, Handle>>>,
   keep_dead_targets: bool,
-  current_handle_id: usize,
+  current_handle_id: Arc<Mutex<usize>>,
 }
 
 impl Broadcaster {
   pub fn keep_dead_targets(mut self, enable: bool) -> Self {
     self.keep_dead_targets = enable;
+    self
+  }
+
+  pub fn timeout_ms(mut self, ms: u64) -> Self {
+    self.timeout_ms = Some(ms);
     self
   }
 
@@ -28,11 +33,19 @@ impl Broadcaster {
     F: Fn(usize) + Send + Sync + 'static,
   {
     let targets = self.targets.clone();
-    let id = self.current_handle_id;
-    self.current_handle_id += 1;
+    let current_handle_id = self.current_handle_id.clone();
+
     tokio::spawn(async move {
-      targets.lock().await.insert(id, handle);
-      callback(id)
+      let current_id;
+      {
+        let mut current_handle_id_locked = current_handle_id.lock().await;
+        current_id = *current_handle_id_locked;
+        *current_handle_id_locked += 1;
+      }
+      {
+        targets.lock().await.insert(current_id, handle);
+      }
+      callback(current_id)
     });
   }
 
