@@ -5,6 +5,7 @@ pub mod lockstep;
 pub mod state;
 pub mod stdio;
 
+pub use broadcast::Broadcaster;
 pub use ctrlc::Ctrlc;
 pub use file::FileNode;
 pub use lockstep::Lockstep;
