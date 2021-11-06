@@ -55,10 +55,11 @@ impl StdioNode {
       if let Some(payload) = stop_rx.recv().await {
         reader_stop_tx.send(()).await.ok();
         writer_stop_tx.send(()).await.ok();
-        if let Some(callback) = payload.callback {
-          callback(Ok(()));
-        }
+        (payload.callback)(Ok(()));
       }
+      // else, all stop_tx are dropped, stop_rx is disabled
+
+      // stop_rx is dropped, later stop_tx.send will throw ChannelClosed error.
     });
 
     // reader thread
@@ -88,7 +89,7 @@ impl StdioNode {
                     buffer.put_u8(b);
                   }
                 }
-                Err(_) => break,
+                Err(_) => break, // stdin error
               }
             }
           }
@@ -113,15 +114,13 @@ impl StdioNode {
                 io::Result::Ok(())
               }
               .await;
-              if let Some(callback) = payload.callback {
-                if let Err(e) = result {
-                  callback(Err(Box::new(e)));
-                } else {
-                  callback(Ok(()));
-                }
+              if let Err(e) = result {
+                (payload.callback)(Err(Box::new(e)));
+              } else {
+                (payload.callback)(Ok(()));
               }
             } else {
-              break
+              break // all tx are dropped
             }
           }
         }
