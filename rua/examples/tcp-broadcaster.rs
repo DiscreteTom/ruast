@@ -6,7 +6,7 @@ use rua::node::{ctrlc::Ctrlc, stdio::StdioNode, tcp::TcpListener, Broadcaster};
 pub async fn main() {
   let mut bc = Broadcaster::default();
 
-  TcpListener::bind("127.0.0.1:8080")
+  let tcp = TcpListener::bind("127.0.0.1:8080")
     .on_new_peer(cc!(|@mut bc, node| {
       // new node will be added to the broadcaster
       bc.add_target(
@@ -25,7 +25,10 @@ pub async fn main() {
   bc.add_target(StdioNode::default().spawn());
 
   Ctrlc::default()
-    .on_signal(move || bc.stop_all())
+    .on_signal(move || {
+      bc.stop_all();
+      tcp.stop()
+    })
     .wait()
     .await
     .expect("failed to listen for ctrlc");
