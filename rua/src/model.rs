@@ -79,6 +79,7 @@ impl HandleBuilder {
     self
   }
 
+  /// Return `Err` if missing `tx` or `stop_tx`.
   pub fn build(self) -> GeneralResult<Handle> {
     Ok(Handle {
       tx: self.tx.ok_or("missing tx when build Handle")?,
