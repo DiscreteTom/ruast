@@ -20,38 +20,53 @@ pub type StopRx = Receiver<StopPayload>;
 
 pub struct WritePayload {
   pub data: Bytes,
-  pub callback: Option<CallbackFn>,
+  pub callback: CallbackFn,
 }
 
 impl WritePayload {
-  pub fn new(data: Bytes) -> Self {
+  pub fn with_data(data: Bytes) -> Self {
     Self {
       data,
-      callback: None,
+      callback: Box::new(|_| {}),
     }
   }
 
-  pub fn then<F>(mut self, callback: F) -> Self
+  pub fn callback<F>(mut self, callback: F) -> Self
   where
     F: Fn(GeneralResult<()>) + Send + Sync + 'static,
   {
-    self.callback = Some(Box::new(callback));
+    self.callback = Box::new(callback);
     self
   }
 }
 
-#[derive(Default)]
 pub struct StopPayload {
-  pub callback: Option<CallbackFn>,
+  pub callback: CallbackFn,
 }
 
 impl StopPayload {
-  pub fn new<F>(callback: F) -> Self
+  pub fn with_callback<F>(callback: F) -> Self
   where
     F: Fn(GeneralResult<()>) + Send + Sync + 'static,
   {
     Self {
-      callback: Some(Box::new(callback)),
+      callback: Box::new(callback),
+    }
+  }
+
+  pub fn callback<F>(mut self, callback: F) -> Self
+  where
+    F: Fn(GeneralResult<()>) + Send + Sync + 'static,
+  {
+    self.callback = Box::new(callback);
+    self
+  }
+}
+
+impl Default for StopPayload {
+  fn default() -> Self {
+    Self {
+      callback: Box::new(|_| {}),
     }
   }
 }
@@ -105,15 +120,12 @@ impl Handle {
     self.timeout_ms = None
   }
 
+  /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
   pub fn write(&self, data: Bytes) {
-    if let Some(timeout_ms) = self.timeout_ms {
-      self.timed_write(data, timeout_ms)
-    } else {
-      let tx = self.tx.clone();
-      tokio::spawn(async move { tx.send(WritePayload::new(data)).await.ok() });
-    }
+    self.write_then(data, |_| {})
   }
 
+  /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
   pub fn write_then<F>(&self, data: Bytes, callback: F)
   where
     F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
@@ -124,7 +136,7 @@ impl Handle {
       let tx = self.tx.clone();
       tokio::spawn(async move {
         if tx
-          .send(WritePayload::new(data).then(callback.clone()))
+          .send(WritePayload::with_data(data).callback(callback.clone()))
           .await
           .is_err()
         {
@@ -135,11 +147,13 @@ impl Handle {
   }
 
   /// Override the default timeout.
+  /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
   pub fn timed_write(&self, data: Bytes, timeout_ms: u64) {
     self.timed_write_then(data, timeout_ms, |_| {})
   }
 
   /// Override the default timeout.
+  /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
   pub fn timed_write_then<F>(&self, data: Bytes, timeout_ms: u64, callback: F)
   where
     F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
@@ -147,7 +161,7 @@ impl Handle {
     let tx = self.tx.clone();
     tokio::spawn(async move {
       tokio::select! {
-        result = tx.send(WritePayload::new(data).then(callback.clone())) => {
+        result = tx.send(WritePayload::with_data(data).callback(callback.clone())) => {
           if result.is_err(){
             callback(Err(Box::new(HandleError::ChannelClosed)));
           }
@@ -171,7 +185,7 @@ impl Handle {
     let stop_tx = self.stop_tx;
     tokio::spawn(async move {
       if stop_tx
-        .send(StopPayload::new(callback.clone()))
+        .send(StopPayload::with_callback(callback.clone()))
         .await
         .is_err()
       {
