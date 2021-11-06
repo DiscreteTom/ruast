@@ -98,26 +98,26 @@ impl HandleBuilder {
   pub fn build(self) -> GeneralResult<Handle> {
     Ok(Handle {
       tx: self.tx.ok_or("missing tx when build Handle")?,
-      stop_handle: StoppableHandle {
+      stop_only: StopOnlyHandle {
         stop_tx: self.stop_tx.ok_or("missing stop_tx when build handle")?,
       },
       timeout_ms: self.timeout_ms,
     })
   }
 
-  pub fn build_stoppable_only(self) -> GeneralResult<StoppableHandle> {
-    Ok(StoppableHandle {
+  pub fn build_stop_only(self) -> GeneralResult<StopOnlyHandle> {
+    Ok(StopOnlyHandle {
       stop_tx: self.stop_tx.ok_or("missing stop_tx when build handle")?,
     })
   }
 }
 
 #[derive(Clone)]
-pub struct StoppableHandle {
+pub struct StopOnlyHandle {
   stop_tx: StopTx,
 }
 
-impl StoppableHandle {
+impl StopOnlyHandle {
   pub fn stop(self) {
     let stop_tx = self.stop_tx;
     tokio::spawn(async move { stop_tx.send(StopPayload::default()).await.ok() });
@@ -143,7 +143,7 @@ impl StoppableHandle {
 #[derive(Clone)]
 pub struct Handle {
   tx: WriteTx,
-  stop_handle: StoppableHandle,
+  stop_only: StopOnlyHandle,
   timeout_ms: Option<u64>,
 }
 
@@ -210,14 +210,14 @@ impl Handle {
   }
 
   pub fn stop(self) {
-    self.stop_handle.stop()
+    self.stop_only.stop()
   }
 
   pub fn stop_then<F>(self, callback: F)
   where
     F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
   {
-    self.stop_handle.stop_then(callback)
+    self.stop_only.stop_then(callback)
   }
 }
 
