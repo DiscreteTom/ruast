@@ -69,8 +69,8 @@ impl HandleBuilder {
     self
   }
 
-  pub fn stop_tx(mut self, tx: StopTx) -> Self {
-    self.stop_tx = Some(tx);
+  pub fn stop_tx(mut self, stop_tx: StopTx) -> Self {
+    self.stop_tx = Some(stop_tx);
     self
   }
 
