@@ -1,13 +1,13 @@
+#[derive(Default)]
 pub struct Ctrlc {
   handler: Option<Box<dyn FnOnce() + Send>>,
 }
 
 impl Ctrlc {
-  pub fn new() -> Self {
-    Self { handler: None }
-  }
-
-  pub fn on_signal(mut self, f: impl FnOnce() + 'static + Send) -> Self {
+  pub fn on_signal<F>(mut self, f: F) -> Self
+  where
+    F: FnOnce() + Send + 'static,
+  {
     self.handler = Some(Box::new(f));
     self
   }
