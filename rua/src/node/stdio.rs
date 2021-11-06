@@ -4,7 +4,7 @@ use tokio::{
   sync::mpsc,
 };
 
-use crate::model::{Handle, HandleBuilder, StopRx, WriteRx};
+use crate::model::{Handle, HandleBuilder, HandleError, StopRx, WriteRx};
 
 /// StdioNode is useful to print messages to stdout.
 /// If you use `on_msg` to register an stdin message handler, you may need to press Enter after you press Ctrl-C.
@@ -47,6 +47,27 @@ impl StdioNode {
   pub fn spawn(self) -> Handle {
     let mut stop_rx = self.stop_rx;
     let mut rx = self.rx;
+    let (reader_stop_tx, mut reader_stop_rx) = mpsc::channel(1);
+    let (writer_stop_tx, mut writer_stop_rx) = mpsc::channel(1);
+
+    // stopper thread
+    tokio::spawn(async move {
+      let mut running = true;
+      while let Some(payload) = stop_rx.recv().await {
+        if running {
+          running = false;
+          reader_stop_tx.send(()).await.ok();
+          writer_stop_tx.send(()).await.ok();
+          if let Some(callback) = payload.callback {
+            callback(Ok(()));
+          }
+        } else {
+          if let Some(callback) = payload.callback {
+            callback(Err(Box::new(HandleError::NodeAlreadyStopped)))
+          }
+        }
+      }
+    });
 
     // reader thread
     if let Some(mut input_handler) = self.input_handler {
@@ -56,10 +77,7 @@ impl StdioNode {
 
         loop {
           tokio::select! {
-            Some(payload) = stop_rx.recv() => {
-              if let Some(callback) = payload.callback {
-                callback(Ok(()));
-              }
+            Some(()) = reader_stop_rx.recv() => {
               break
             }
             b = stdin.read_u8() => {
@@ -90,24 +108,30 @@ impl StdioNode {
     tokio::spawn(async move {
       let mut stdout = io::stdout();
       loop {
-        match rx.recv().await {
-          Some(payload) => {
-            let result = async {
-              stdout.write_all(&payload.data).await?;
-              stdout.write_all(b"\n").await?;
-              stdout.flush().await?;
-              io::Result::Ok(())
-            }
-            .await;
-            if let Some(callback) = payload.callback {
-              if let Err(e) = result {
-                callback(Err(Box::new(e)));
-              } else {
-                callback(Ok(()));
+        tokio::select! {
+          Some(()) = writer_stop_rx.recv() => {
+            break
+          }
+          payload = rx.recv() => {
+            if let Some(payload) = payload {
+              let result = async {
+                stdout.write_all(&payload.data).await?;
+                stdout.write_all(b"\n").await?;
+                stdout.flush().await?;
+                io::Result::Ok(())
               }
+              .await;
+              if let Some(callback) = payload.callback {
+                if let Err(e) = result {
+                  callback(Err(Box::new(e)));
+                } else {
+                  callback(Ok(()));
+                }
+              }
+            } else {
+              break
             }
           }
-          None => break,
         }
       }
     });
