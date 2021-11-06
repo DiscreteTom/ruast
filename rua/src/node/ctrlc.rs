@@ -1,6 +1,27 @@
-#[derive(Default)]
+use std::io;
+
+use tokio::sync::mpsc;
+
+use crate::model::{HandleBuilder, StopOnlyHandle, StopRx};
+
 pub struct Ctrlc {
-  handler: Option<Box<dyn FnOnce() + Send>>,
+  handle: StopOnlyHandle,
+  stop_rx: StopRx,
+  signal_handler: Box<dyn FnOnce() + Send>,
+}
+
+impl Default for Ctrlc {
+  fn default() -> Self {
+    let (stop_tx, stop_rx) = mpsc::channel(1);
+    Self {
+      handle: HandleBuilder::default()
+        .stop_tx(stop_tx)
+        .build_stop_only()
+        .unwrap(),
+      stop_rx,
+      signal_handler: Box::new(|| {}),
+    }
+  }
 }
 
 impl Ctrlc {
@@ -8,21 +29,45 @@ impl Ctrlc {
   where
     F: FnOnce() + Send + 'static,
   {
-    self.handler = Some(Box::new(f));
+    self.signal_handler = Box::new(f);
     self
   }
 
-  pub fn spawn(self) {
-    tokio::spawn(async move { self.wait().await });
+  pub fn handle(&self) -> &StopOnlyHandle {
+    &self.handle
   }
 
-  pub async fn wait(self) {
-    tokio::signal::ctrl_c()
-      .await
-      .expect("failed to listen for ctrlc");
+  pub fn spawn(self) -> StopOnlyHandle {
+    let stop_rx = self.stop_rx;
+    let signal_handler = self.signal_handler;
+    tokio::spawn(async move { Self::inner_wait(stop_rx, signal_handler).await });
+    self.handle
+  }
 
-    if let Some(handler) = self.handler {
-      (handler)();
+  pub async fn wait(self) -> io::Result<()> {
+    Self::inner_wait(self.stop_rx, self.signal_handler).await
+  }
+
+  async fn inner_wait(
+    mut stop_rx: StopRx,
+    signal_handler: Box<dyn FnOnce() + Send>,
+  ) -> io::Result<()> {
+    tokio::select! {
+      Some(payload) = stop_rx.recv() => {
+        (payload.callback)(Ok(()));
+        Ok(())
+      }
+      result = tokio::signal::ctrl_c() => {
+        match result {
+          Ok(()) => {
+            (signal_handler)();
+            Ok(())
+          }
+          Err(e) => {
+            Err(e)
+          }
+        }
+      }
     }
   }
 }
