@@ -10,5 +10,8 @@ pub async fn main() {
     .on_input(cc!(|@handle, msg| handle.write(msg)))
     .spawn();
 
-  Ctrlc::new().on_signal(move || handle.stop()).wait().await;
+  Ctrlc::default()
+    .on_signal(move || handle.stop())
+    .wait()
+    .await;
 }
