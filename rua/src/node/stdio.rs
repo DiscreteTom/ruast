@@ -116,6 +116,7 @@ impl StdioNode {
               .await;
               if let Err(e) = result {
                 (payload.callback)(Err(Box::new(e)));
+                break
               } else {
                 (payload.callback)(Ok(()));
               }
