@@ -96,6 +96,14 @@ pub struct Handle {
 }
 
 impl Handle {
+  pub fn set_timeout_ms(&mut self, ms: u64) {
+    self.timeout_ms = Some(ms);
+  }
+
+  pub fn clear_timeout(&mut self) {
+    self.timeout_ms = None
+  }
+
   pub fn write(&self, data: Bytes) {
     if let Some(timeout_ms) = self.timeout_ms {
       self.timed_write(data, timeout_ms)
