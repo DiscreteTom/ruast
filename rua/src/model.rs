@@ -12,7 +12,7 @@ use tokio::{
 
 pub type GeneralResult<T> = std::result::Result<T, Box<dyn Error>>;
 
-pub type CallbackFn = Box<dyn Fn(GeneralResult<()>) + Send>;
+pub type CallbackFn = Box<dyn Fn(GeneralResult<()>) + Send + Sync>;
 pub type WriteTx = Sender<WritePayload>;
 pub type WriteRx = Receiver<WritePayload>;
 pub type StopTx = Sender<StopPayload>;
@@ -33,7 +33,7 @@ impl WritePayload {
 
   pub fn then<F>(mut self, callback: F) -> Self
   where
-    F: Fn(GeneralResult<()>) + Send + 'static,
+    F: Fn(GeneralResult<()>) + Send + Sync + 'static,
   {
     self.callback = Some(Box::new(callback));
     self
@@ -48,7 +48,7 @@ pub struct StopPayload {
 impl StopPayload {
   pub fn new<F>(callback: F) -> Self
   where
-    F: Fn(GeneralResult<()>) + Send + 'static,
+    F: Fn(GeneralResult<()>) + Send + Sync + 'static,
   {
     Self {
       callback: Some(Box::new(callback)),
