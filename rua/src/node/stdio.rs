@@ -4,7 +4,7 @@ use tokio::{
   sync::mpsc,
 };
 
-use crate::model::{Handle, HandleBuilder, HandleError, StopRx, WriteRx};
+use crate::model::{Handle, HandleBuilder, StopRx, WriteRx};
 
 /// StdioNode is useful to print messages to stdout.
 /// If you use `on_msg` to register an stdin message handler, you may need to press Enter after you press Ctrl-C.
@@ -52,19 +52,11 @@ impl StdioNode {
 
     // stopper thread
     tokio::spawn(async move {
-      let mut running = true;
-      while let Some(payload) = stop_rx.recv().await {
-        if running {
-          running = false;
-          reader_stop_tx.send(()).await.ok();
-          writer_stop_tx.send(()).await.ok();
-          if let Some(callback) = payload.callback {
-            callback(Ok(()));
-          }
-        } else {
-          if let Some(callback) = payload.callback {
-            callback(Err(Box::new(HandleError::NodeAlreadyStopped)))
-          }
+      if let Some(payload) = stop_rx.recv().await {
+        reader_stop_tx.send(()).await.ok();
+        writer_stop_tx.send(()).await.ok();
+        if let Some(callback) = payload.callback {
+          callback(Ok(()));
         }
       }
     });
