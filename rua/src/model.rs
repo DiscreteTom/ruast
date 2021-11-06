@@ -185,6 +185,7 @@ impl Handle {
 pub enum HandleError {
   ChannelClosed,
   Timeout,
+  NodeAlreadyStopped,
 }
 
 impl Display for HandleError {
@@ -192,6 +193,7 @@ impl Display for HandleError {
     match self {
       HandleError::ChannelClosed => write!(f, "channel closed"),
       HandleError::Timeout => write!(f, "timeout"),
+      HandleError::NodeAlreadyStopped => write!(f, "node already stopped"),
     }
   }
 }
