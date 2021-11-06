@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
-use rua::model::{Handle, HandleBuilder, StopRx, WriteRx};
+use rua::model::{Handle, HandleBuilder, StopPayload, StopRx, StopTx, WriteRx};
 use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
@@ -12,6 +12,7 @@ pub struct WsNode {
   addr: SocketAddr,
   rx: WriteRx,
   stop_rx: StopRx,
+  stop_tx: StopTx,
   msg_handler: Option<Box<dyn FnMut(Bytes) + Send>>,
 }
 
@@ -28,9 +29,10 @@ impl WsNode {
       msg_handler: None,
       handle: HandleBuilder::default()
         .tx(tx)
-        .stop_tx(stop_tx)
+        .stop_tx(stop_tx.clone())
         .build()
         .unwrap(),
+      stop_tx,
     }
   }
 
@@ -49,6 +51,7 @@ impl WsNode {
 
   pub fn spawn(self) -> Handle {
     let mut stop_rx = self.stop_rx;
+    let stop_tx = self.stop_tx;
     let mut rx = self.rx;
     let (reader_stop_tx, mut reader_stop_rx) = mpsc::channel(1);
     let (writer_stop_tx, mut writer_stop_rx) = mpsc::channel(1);
@@ -89,6 +92,8 @@ impl WsNode {
             }
           }
         }
+        // notify writer thread
+        stop_tx.send(StopPayload::default()).await.ok();
       });
     }
 

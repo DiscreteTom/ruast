@@ -7,7 +7,9 @@ use tokio::{
   sync::mpsc,
 };
 
-use crate::model::{GeneralResult, Handle, HandleBuilder, StopOnlyHandle, StopRx, WriteRx};
+use crate::model::{
+  GeneralResult, Handle, HandleBuilder, StopOnlyHandle, StopPayload, StopRx, StopTx, WriteRx,
+};
 
 pub struct TcpListener<'a> {
   addr: &'a str,
@@ -72,9 +74,10 @@ impl<'a> TcpListener<'a> {
                 input_handler: None,
                 handle: HandleBuilder::default()
                   .tx(tx)
-                  .stop_tx(stop_tx)
+                  .stop_tx(stop_tx.clone())
                   .build()
                   .unwrap(),
+                  stop_tx,
               })
             } else {
               break
@@ -99,6 +102,7 @@ pub struct TcpNode {
   input_handler: Option<Box<dyn FnMut(Bytes) + Send>>,
   rx: WriteRx,
   stop_rx: StopRx,
+  stop_tx: StopTx,
 }
 
 impl TcpNode {
@@ -120,6 +124,7 @@ impl TcpNode {
 
   pub fn spawn(self) -> Handle {
     let mut stop_rx = self.stop_rx;
+    let stop_tx = self.stop_tx;
     let mut rx = self.rx;
     let (reader_stop_tx, mut reader_stop_rx) = mpsc::channel(1);
     let (writer_stop_tx, mut writer_stop_rx) = mpsc::channel(1);
@@ -163,11 +168,13 @@ impl TcpNode {
                     buffer.put_u8(b);
                   }
                 }
-                Err(_) => break, // reader error
+                Err(_) => break,
               }
             }
           }
         }
+        // notify writer thread
+        stop_tx.send(StopPayload::default()).await.ok();
       });
     }
 
