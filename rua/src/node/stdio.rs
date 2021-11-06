@@ -4,15 +4,15 @@ use tokio::{
   sync::mpsc,
 };
 
-use crate::model::{Rx, Urx, WritableStoppableHandle};
+use crate::model::{Handle, HandleBuilder, StopRx, WriteRx};
 
 /// StdioNode is useful to print messages to stdout.
 /// If you use `on_msg` to register an stdin message handler, you may need to press Enter after you press Ctrl-C.
 pub struct StdioNode {
-  msg_handler: Option<Box<dyn FnMut(Bytes) + Send>>,
-  handle: WritableStoppableHandle,
-  rx: Rx,
-  stop_rx: Urx,
+  input_handler: Option<Box<dyn FnMut(Bytes) + Send>>,
+  handle: Handle,
+  rx: WriteRx,
+  stop_rx: StopRx,
 }
 
 impl StdioNode {
@@ -21,39 +21,45 @@ impl StdioNode {
     let (stop_tx, stop_rx) = mpsc::channel(1);
 
     Self {
-      msg_handler: None,
-      handle: WritableStoppableHandle::new(tx, stop_tx),
+      input_handler: None,
+      handle: HandleBuilder::default()
+        .tx(tx)
+        .stop_tx(stop_tx)
+        .build()
+        .unwrap(),
       rx,
       stop_rx,
     }
   }
 
-  pub fn default() -> Self {
-    Self::new(16)
-  }
-
-  pub fn on_msg(mut self, f: impl FnMut(Bytes) + 'static + Send) -> Self {
-    self.msg_handler = Some(Box::new(f));
+  pub fn on_input<F>(mut self, f: F) -> Self
+  where
+    F: FnMut(Bytes) + Send + 'static,
+  {
+    self.input_handler = Some(Box::new(f));
     self
   }
 
-  pub fn handle(&self) -> WritableStoppableHandle {
-    self.handle.clone()
+  pub fn handle(&self) -> &Handle {
+    &self.handle
   }
 
-  pub fn spawn(self) -> WritableStoppableHandle {
+  pub fn spawn(self) -> Handle {
     let mut stop_rx = self.stop_rx;
     let mut rx = self.rx;
 
     // reader thread
-    if let Some(mut msg_handler) = self.msg_handler {
+    if let Some(mut input_handler) = self.input_handler {
       tokio::spawn(async move {
         let mut stdin = io::stdin();
         let mut buffer = BytesMut::with_capacity(64);
 
         loop {
           tokio::select! {
-            Some(()) = stop_rx.recv() => {
+            Some(payload) = stop_rx.recv() => {
+              if let Some(callback) = payload.callback {
+                callback(Ok(()));
+              }
               break
             }
             b = stdin.read_u8() => {
@@ -61,7 +67,7 @@ impl StdioNode {
                 Ok(b) => {
                   if b == b'\n' {
                     // handle msg
-                    (msg_handler)(buffer.freeze());
+                    (input_handler)(buffer.freeze());
                     // reset buffer
                     buffer = BytesMut::with_capacity(64);
                   } else if b != b'\r' {
@@ -85,16 +91,21 @@ impl StdioNode {
       let mut stdout = io::stdout();
       loop {
         match rx.recv().await {
-          Some(data) => {
-            stdout
-              .write_all(&data)
-              .await
-              .expect("StdioNode write data failed");
-            stdout
-              .write_all(b"\n")
-              .await
-              .expect("StdioNode write \\n failed");
-            stdout.flush().await.expect("StdioNode flush output failed");
+          Some(payload) => {
+            let result = async {
+              stdout.write_all(&payload.data).await?;
+              stdout.write_all(b"\n").await?;
+              stdout.flush().await?;
+              io::Result::Ok(())
+            }
+            .await;
+            if let Some(callback) = payload.callback {
+              if let Err(e) = result {
+                callback(Err(Box::new(e)));
+              } else {
+                callback(Ok(()));
+              }
+            }
           }
           None => break,
         }
@@ -102,5 +113,11 @@ impl StdioNode {
     });
 
     self.handle
+  }
+}
+
+impl Default for StdioNode {
+  fn default() -> Self {
+    Self::new(16)
   }
 }
