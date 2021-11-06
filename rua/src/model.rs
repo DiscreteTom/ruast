@@ -105,6 +105,7 @@ impl HandleBuilder {
     })
   }
 
+  /// Return `Err` if missing `stop_rx`.
   pub fn build_stop_only(self) -> GeneralResult<StopOnlyHandle> {
     Ok(StopOnlyHandle {
       stop_tx: self.stop_tx.ok_or("missing stop_tx when build handle")?,
