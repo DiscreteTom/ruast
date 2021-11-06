@@ -159,7 +159,8 @@ impl Handle {
 
   /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
   pub fn write(&self, data: Bytes) {
-    self.write_then(data, |_| {})
+    let tx = self.tx.clone();
+    Self::inner_write(tx, data, self.timeout_ms, |_| {})
   }
 
   /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
@@ -167,26 +168,15 @@ impl Handle {
   where
     F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
   {
-    if let Some(timeout_ms) = self.timeout_ms {
-      self.timed_write_then(data, timeout_ms, callback)
-    } else {
-      let tx = self.tx.clone();
-      tokio::spawn(async move {
-        if tx
-          .send(WritePayload::with_data(data).callback(callback.clone()))
-          .await
-          .is_err()
-        {
-          callback(Err(Box::new(HandleError::ChannelClosed)));
-        }
-      });
-    }
+    let tx = self.tx.clone();
+    Self::inner_write(tx, data, self.timeout_ms, callback)
   }
 
   /// Override the default timeout.
   /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
   pub fn timed_write(&self, data: Bytes, timeout_ms: u64) {
-    self.timed_write_then(data, timeout_ms, |_| {})
+    let tx = self.tx.clone();
+    Self::inner_write(tx, data, Some(timeout_ms), |_| {})
   }
 
   /// Override the default timeout.
@@ -196,15 +186,32 @@ impl Handle {
     F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
   {
     let tx = self.tx.clone();
+    Self::inner_write(tx, data, Some(timeout_ms), callback)
+  }
+
+  fn inner_write<F>(tx: WriteTx, data: Bytes, timeout_ms: Option<u64>, callback: F)
+  where
+    F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
+  {
     tokio::spawn(async move {
-      tokio::select! {
-        result = tx.send(WritePayload::with_data(data).callback(callback.clone())) => {
-          if result.is_err(){
-            callback(Err(Box::new(HandleError::ChannelClosed)));
+      if let Some(timeout_ms) = timeout_ms {
+        tokio::select! {
+          result = tx.send(WritePayload::with_data(data).callback(callback.clone())) => {
+            if result.is_err(){
+              callback(Err(Box::new(HandleError::ChannelClosed)));
+            }
+          }
+          _ = time::sleep(Duration::from_millis(timeout_ms)) => {
+            callback(Err(Box::new(HandleError::Timeout)));
           }
         }
-        _ = time::sleep(Duration::from_millis(timeout_ms)) => {
-          callback(Err(Box::new(HandleError::Timeout)));
+      } else {
+        // no timeout
+        let result = tx
+          .send(WritePayload::with_data(data).callback(callback.clone()))
+          .await;
+        if result.is_err() {
+          callback(Err(Box::new(HandleError::ChannelClosed)));
         }
       }
     });
