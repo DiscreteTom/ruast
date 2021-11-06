@@ -1,22 +1,19 @@
 use clonesure::cc;
-use rua::{
-  model::{Stoppable, Writable},
-  node::{ctrlc::Ctrlc, file::FileNode, stdio::StdioNode},
-};
+use rua::node::{ctrlc::Ctrlc, file::FileNode, stdio::StdioNode};
 
 #[tokio::main]
 pub async fn main() {
   let file = FileNode::default()
-    .filename("log.txt".to_string())
+    .filename("log.txt")
     .spawn()
     .await
     .expect("failed to create file peer");
 
   let stdio = StdioNode::default()
-    .on_msg(cc!(|@file, msg| file.write(msg).unwrap()))
+    .on_input(cc!(|@file, msg| file.write(msg)))
     .spawn();
 
-  Ctrlc::new()
+  Ctrlc::default()
     .on_signal(move || {
       stdio.stop();
       file.stop()
