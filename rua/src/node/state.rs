@@ -6,18 +6,22 @@ pub struct StateNode<T: Send> {
   handle: StateNodeHandle<T>,
 }
 
-impl<T: 'static + Send> StateNode<T> {
+impl<T: Send + 'static> StateNode<T> {
   pub fn new(state: T, buffer: usize) -> Self {
     let (f_tx, f_rx) = mpsc::channel(buffer);
     Self {
       state,
       f_rx,
-      handle: StateNodeHandle::new(f_tx),
+      handle: StateNodeHandle { f_tx },
     }
   }
 
-  pub fn default(state: T) -> Self {
+  pub fn with_state(state: T) -> Self {
     Self::new(state, 16)
+  }
+
+  pub fn handle(&self) -> &StateNodeHandle<T> {
+    &self.handle
   }
 
   pub fn spawn(self) -> StateNodeHandle<T> {
@@ -38,11 +42,10 @@ pub struct StateNodeHandle<T> {
 }
 
 impl<T: 'static> StateNodeHandle<T> {
-  fn new(f_tx: Sender<Box<dyn FnOnce(&mut T) + Send>>) -> Self {
-    Self { f_tx }
-  }
-
-  pub fn apply(&self, f: impl FnOnce(&mut T) + 'static + Send) {
+  pub fn apply<F>(&self, f: F)
+  where
+    F: FnOnce(&mut T) + 'static + Send,
+  {
     let f_tx = self.f_tx.clone();
     tokio::spawn(async move { f_tx.send(Box::new(f)).await });
   }
