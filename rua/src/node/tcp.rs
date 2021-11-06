@@ -7,20 +7,29 @@ use tokio::{
   sync::mpsc,
 };
 
-use crate::model::{GeneralResult, Handle, HandleBuilder, StopRx, WriteRx};
+use crate::model::{GeneralResult, Handle, HandleBuilder, StopOnlyHandle, StopRx, WriteRx};
 
 pub struct TcpListener<'a> {
   addr: &'a str,
   peer_handler: Option<Box<dyn FnMut(TcpNode) + Send>>,
   peer_write_buffer: usize,
+  handle: StopOnlyHandle,
+  stop_rx: StopRx,
 }
 
 impl<'a> TcpListener<'a> {
   pub fn bind(addr: &'a str) -> Self {
+    let (stop_tx, stop_rx) = mpsc::channel(1);
+
     Self {
       addr,
+      stop_rx,
       peer_handler: None,
       peer_write_buffer: 16,
+      handle: HandleBuilder::default()
+        .stop_tx(stop_tx)
+        .build_stop_only()
+        .unwrap(),
     }
   }
 
@@ -34,35 +43,52 @@ impl<'a> TcpListener<'a> {
     self
   }
 
+  pub fn handle(&self) -> &StopOnlyHandle {
+    &self.handle
+  }
+
   /// Return `Err` if missing `peer_handler` or failed bind to address.
-  pub async fn spawn(self) -> GeneralResult<()> {
+  pub async fn spawn(self) -> GeneralResult<StopOnlyHandle> {
     let mut peer_handler = self
       .peer_handler
       .ok_or("missing peer_handler when spawn TcpListener")?;
     let listener = net::TcpListener::bind(self.addr).await?;
     let peer_write_buffer = self.peer_write_buffer;
+    let mut stop_rx = self.stop_rx;
 
     tokio::spawn(async move {
-      while let Ok((socket, addr)) = listener.accept().await {
-        let (tx, rx) = mpsc::channel(peer_write_buffer);
-        let (stop_tx, stop_rx) = mpsc::channel(1);
+      loop {
+        tokio::select! {
+          result = listener.accept() => {
+            if let Ok((socket, addr)) = result {
+              let (tx, rx) = mpsc::channel(peer_write_buffer);
+              let (stop_tx, stop_rx) = mpsc::channel(1);
 
-        peer_handler(TcpNode {
-          socket,
-          addr,
-          rx,
-          stop_rx,
-          input_handler: None,
-          handle: HandleBuilder::default()
-            .tx(tx)
-            .stop_tx(stop_tx)
-            .build()
-            .unwrap(),
-        })
+              peer_handler(TcpNode {
+                socket,
+                addr,
+                rx,
+                stop_rx,
+                input_handler: None,
+                handle: HandleBuilder::default()
+                  .tx(tx)
+                  .stop_tx(stop_tx)
+                  .build()
+                  .unwrap(),
+              })
+            } else {
+              break
+            }
+          }
+          Some(payload) = stop_rx.recv() => {
+            (payload.callback)(Ok(()));
+            break
+          }
+        }
       }
     });
 
-    Ok(())
+    Ok(self.handle)
   }
 }
 
