@@ -63,22 +63,7 @@ impl<'a> TcpListener<'a> {
         tokio::select! {
           result = listener.accept() => {
             if let Ok((socket, addr)) = result {
-              let (tx, rx) = mpsc::channel(peer_write_buffer);
-              let (stop_tx, stop_rx) = mpsc::channel(1);
-
-              peer_handler(TcpNode {
-                socket,
-                addr,
-                rx,
-                stop_rx,
-                input_handler: None,
-                handle: HandleBuilder::default()
-                  .tx(tx)
-                  .stop_tx(stop_tx.clone())
-                  .build()
-                  .unwrap(),
-                  stop_tx,
-              })
+              peer_handler(TcpNode::new(socket, addr, peer_write_buffer));
             } else {
               break
             }
@@ -106,6 +91,25 @@ pub struct TcpNode {
 }
 
 impl TcpNode {
+  pub fn new(socket: TcpStream, addr: SocketAddr, buffer: usize) -> Self {
+    let (tx, rx) = mpsc::channel(buffer);
+    let (stop_tx, stop_rx) = mpsc::channel(1);
+
+    Self {
+      socket,
+      addr,
+      rx,
+      stop_rx,
+      input_handler: None,
+      handle: HandleBuilder::default()
+        .tx(tx)
+        .stop_tx(stop_tx.clone())
+        .build()
+        .unwrap(),
+      stop_tx,
+    }
+  }
+
   pub fn on_input<F>(mut self, f: F) -> Self
   where
     F: FnMut(Bytes) + Send + 'static,
