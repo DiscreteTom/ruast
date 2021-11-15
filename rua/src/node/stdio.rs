@@ -7,7 +7,7 @@ use tokio::{
 use crate::model::{Handle, HandleBuilder, StopRx, WriteRx};
 
 /// StdioNode is useful to print messages to stdout.
-/// If you use `on_msg` to register an stdin message handler, you may need to press Enter after you press Ctrl-C.
+/// If you use `on_input` to register an stdin message handler, you may need to press Enter after you press Ctrl-C.
 pub struct StdioNode {
   input_handler: Option<Box<dyn FnMut(Bytes) + Send>>,
   handle: Handle,
