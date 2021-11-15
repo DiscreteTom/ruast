@@ -34,6 +34,18 @@ macro_rules! take_option {
   };
 }
 
+/// Take mutable option members from a struct.
+///
+/// `take_option_mut(self, value);` will be translated to `let mut value = self.value.ok_or("missing value")?;`.
+#[macro_export]
+macro_rules! take_option_mut {
+  ($self:ident, $($option:ident),*) => {
+    $(
+      let mut $option = $self.$option.ok_or(format!("missing {}", stringify!($option)))?;
+    )*
+  };
+}
+
 /// Clone members from a struct.
 ///
 /// `clone(self, value);` will be translated to `let value = self.value.clone();`.
