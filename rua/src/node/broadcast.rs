@@ -3,7 +3,10 @@ use std::{collections::HashMap, sync::Arc};
 use bytes::Bytes;
 use tokio::sync::Mutex;
 
-use crate::model::{GeneralResult, Handle};
+use crate::{
+  clone, go,
+  model::{GeneralResult, Handle},
+};
 
 #[derive(Clone, Default)]
 pub struct Broadcaster {
@@ -32,10 +35,9 @@ impl Broadcaster {
   where
     F: Fn(usize) + Send + Sync + 'static,
   {
-    let targets = self.targets.clone();
-    let current_handle_id = self.current_handle_id.clone();
+    clone!(self, targets, current_handle_id);
 
-    tokio::spawn(async move {
+    go! {
       let current_id;
       {
         let mut current_handle_id_locked = current_handle_id.lock().await;
@@ -46,7 +48,7 @@ impl Broadcaster {
         targets.lock().await.insert(current_id, handle);
       }
       callback(current_id)
-    });
+    };
   }
 
   pub fn remove_target(&self, id: usize) {
@@ -57,8 +59,8 @@ impl Broadcaster {
   where
     F: Fn(Option<Handle>) + Send + Sync + 'static,
   {
-    let targets = self.targets.clone();
-    tokio::spawn(async move { callback(targets.lock().await.remove(&id)) });
+    clone!(self, targets);
+    go! { callback(targets.lock().await.remove(&id)) };
   }
 
   /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
@@ -93,9 +95,8 @@ impl Broadcaster {
   where
     F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
   {
-    let targets = self.targets.clone();
-    let keep_dead_targets = self.keep_dead_targets;
-    tokio::spawn(async move {
+    clone!(self, targets, keep_dead_targets);
+    go! {
       let targets_locked = targets.lock().await;
 
       for (id, handle) in targets_locked.iter() {
@@ -107,7 +108,7 @@ impl Broadcaster {
         let callback = move |result: GeneralResult<()>| {
           let targets = targets.clone();
           if result.is_err() && !keep_dead_targets {
-            tokio::spawn(async move { targets.lock().await.remove(&id) });
+            go! { targets.lock().await.remove(&id) };
           }
           callback(result);
         };
@@ -118,7 +119,7 @@ impl Broadcaster {
           handle.write_then(data.clone(), callback.clone());
         }
       }
-    });
+    };
   }
 
   pub fn stop_all(self) {
@@ -129,8 +130,8 @@ impl Broadcaster {
   where
     F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
   {
-    let targets = self.targets;
-    tokio::spawn(async move {
+    clone!(self, targets);
+    go! {
       let mut targets = targets.lock().await;
       let keys: Vec<usize> = targets.keys().map(|x| *x).collect();
       for id in keys {
@@ -138,6 +139,6 @@ impl Broadcaster {
           handle.stop_then(callback.clone());
         }
       }
-    });
+    };
   }
 }

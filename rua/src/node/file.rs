@@ -1,6 +1,6 @@
 use tokio::{io::AsyncWriteExt, sync::mpsc};
 
-use crate::model::{GeneralResult, Handle, HandleBuilder, StopRx, WriteRx};
+use crate::{go, model::{GeneralResult, Handle, HandleBuilder, StopRx, WriteRx}, take_mut, take_option};
 
 pub struct FileNode<'a> {
   handle: Handle,
@@ -42,9 +42,7 @@ impl<'a> FileNode<'a> {
   }
 
   pub async fn spawn(self) -> GeneralResult<Handle> {
-    let filename = self
-      .filename
-      .ok_or("missing filename when build FileNode")?;
+    take_option!(self, filename);
 
     let mut file = tokio::fs::OpenOptions::new()
       .create(true)
@@ -54,9 +52,8 @@ impl<'a> FileNode<'a> {
       .await?;
 
     // writer thread
-    let mut stop_rx = self.stop_rx;
-    let mut rx = self.rx;
-    tokio::spawn(async move {
+    take_mut!(self, stop_rx, rx);
+    go! {
       loop {
         tokio::select! {
           Some(payload) = stop_rx.recv() => {
@@ -82,7 +79,7 @@ impl<'a> FileNode<'a> {
           }
         }
       }
-    });
+    };
     Ok(self.handle)
   }
 }

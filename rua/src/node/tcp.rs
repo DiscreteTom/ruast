@@ -7,8 +7,12 @@ use tokio::{
   sync::mpsc,
 };
 
-use crate::model::{
-  GeneralResult, Handle, HandleBuilder, StopOnlyHandle, StopPayload, StopRx, StopTx, WriteRx,
+use crate::{
+  go,
+  model::{
+    GeneralResult, Handle, HandleBuilder, StopOnlyHandle, StopPayload, StopRx, StopTx, WriteRx,
+  },
+  take, take_mut, take_option_mut,
 };
 
 pub struct TcpListener<'a> {
@@ -51,14 +55,14 @@ impl<'a> TcpListener<'a> {
 
   /// Return `Err` if missing `peer_handler` or failed bind to address.
   pub async fn spawn(self) -> GeneralResult<StopOnlyHandle> {
-    let mut peer_handler = self
-      .peer_handler
-      .ok_or("missing peer_handler when spawn TcpListener")?;
-    let listener = net::TcpListener::bind(self.addr).await?;
-    let peer_write_buffer = self.peer_write_buffer;
-    let mut stop_rx = self.stop_rx;
+    take_option_mut!(self, peer_handler);
 
-    tokio::spawn(async move {
+    let listener = net::TcpListener::bind(self.addr).await?;
+
+    take!(self, peer_write_buffer);
+    take_mut!(self, stop_rx);
+
+    go! {
       loop {
         tokio::select! {
           result = listener.accept() => {
@@ -74,7 +78,7 @@ impl<'a> TcpListener<'a> {
           }
         }
       }
-    });
+    };
 
     Ok(self.handle)
   }
@@ -127,15 +131,15 @@ impl TcpNode {
   }
 
   pub fn spawn(self) -> Handle {
-    let mut stop_rx = self.stop_rx;
-    let stop_tx = self.stop_tx;
-    let mut rx = self.rx;
+    take_mut!(self, stop_rx, rx);
+    take!(self, stop_tx);
+
     let (reader_stop_tx, mut reader_stop_rx) = mpsc::channel(1);
     let (writer_stop_tx, mut writer_stop_rx) = mpsc::channel(1);
     let (mut reader, mut writer) = self.socket.into_split();
 
     // stopper thread
-    tokio::spawn(async move {
+    go! {
       if let Some(payload) = stop_rx.recv().await {
         reader_stop_tx.send(()).await.ok();
         writer_stop_tx.send(()).await.ok();
@@ -144,11 +148,11 @@ impl TcpNode {
       // else, all stop_tx are dropped, stop_rx is disabled
 
       // stop_rx is dropped, later stop_tx.send will throw ChannelClosed error.
-    });
+    };
 
     // reader thread
     if let Some(mut input_handler) = self.input_handler {
-      tokio::spawn(async move {
+      go! {
         let mut buffer = BytesMut::with_capacity(64);
 
         loop {
@@ -179,11 +183,11 @@ impl TcpNode {
         }
         // notify writer thread
         stop_tx.send(StopPayload::default()).await.ok();
-      });
+      };
     }
 
     // writer thread
-    tokio::spawn(async move {
+    go! {
       loop {
         tokio::select! {
           Some(()) = writer_stop_rx.recv() => {
@@ -210,7 +214,7 @@ impl TcpNode {
           }
         }
       }
-    });
+    };
 
     self.handle
   }

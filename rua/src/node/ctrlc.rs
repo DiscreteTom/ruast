@@ -2,7 +2,11 @@ use std::io;
 
 use tokio::sync::mpsc;
 
-use crate::model::{HandleBuilder, StopOnlyHandle, StopRx};
+use crate::{
+  go,
+  model::{HandleBuilder, StopOnlyHandle, StopRx},
+  take,
+};
 
 pub struct Ctrlc {
   handle: StopOnlyHandle,
@@ -38,9 +42,8 @@ impl Ctrlc {
   }
 
   pub fn spawn(self) -> StopOnlyHandle {
-    let stop_rx = self.stop_rx;
-    let signal_handler = self.signal_handler;
-    tokio::spawn(async move { Self::inner_wait(stop_rx, signal_handler).await });
+    take!(self, stop_rx, signal_handler);
+    go! { Self::inner_wait(stop_rx, signal_handler).await };
     self.handle
   }
 

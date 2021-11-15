@@ -4,7 +4,11 @@ use tokio::{
   sync::mpsc,
 };
 
-use crate::model::{Handle, HandleBuilder, StopRx, WriteRx};
+use crate::{
+  go,
+  model::{Handle, HandleBuilder, StopRx, WriteRx},
+  take_mut,
+};
 
 /// StdioNode is useful to print messages to stdout.
 /// If you use `on_input` to register an stdin message handler, you may need to press Enter after you press Ctrl-C.
@@ -51,13 +55,12 @@ impl StdioNode {
   }
 
   pub fn spawn(self) -> Handle {
-    let mut stop_rx = self.stop_rx;
-    let mut rx = self.rx;
+    take_mut!(self, stop_rx, rx);
     let (reader_stop_tx, mut reader_stop_rx) = mpsc::channel(1);
     let (writer_stop_tx, mut writer_stop_rx) = mpsc::channel(1);
 
     // stopper thread
-    tokio::spawn(async move {
+    go! {
       if let Some(payload) = stop_rx.recv().await {
         reader_stop_tx.send(()).await.ok();
         writer_stop_tx.send(()).await.ok();
@@ -66,11 +69,11 @@ impl StdioNode {
       // else, all stop_tx are dropped, stop_rx is disabled
 
       // stop_rx is dropped, later stop_tx.send will throw ChannelClosed error.
-    });
+    };
 
     // reader thread
     if let Some(mut input_handler) = self.input_handler {
-      tokio::spawn(async move {
+      go! {
         let mut stdin = io::stdin();
         let mut buffer = BytesMut::with_capacity(64);
 
@@ -100,11 +103,11 @@ impl StdioNode {
             }
           }
         }
-      });
+      };
     }
 
     // writer thread
-    tokio::spawn(async move {
+    go! {
       let mut stdout = io::stdout();
       loop {
         tokio::select! {
@@ -132,7 +135,7 @@ impl StdioNode {
           }
         }
       }
-    });
+    };
 
     self.handle
   }

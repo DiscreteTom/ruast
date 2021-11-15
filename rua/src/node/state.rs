@@ -1,5 +1,7 @@
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
+use crate::{go, take_mut};
+
 pub struct StateNode<T: Send> {
   state: T,
   f_rx: Receiver<Box<dyn FnOnce(&mut T) + Send>>,
@@ -25,13 +27,12 @@ impl<T: Send + 'static> StateNode<T> {
   }
 
   pub fn spawn(self) -> StateNodeHandle<T> {
-    let mut state = self.state;
-    let mut f_rx = self.f_rx;
-    tokio::spawn(async move {
+    take_mut!(self, state, f_rx);
+    go! {
       while let Some(f) = f_rx.recv().await {
         f(&mut state);
       }
-    });
+    };
     self.handle
   }
 }
