@@ -10,6 +10,8 @@ use tokio::{
   time,
 };
 
+use crate::{clone, go, take, take_option};
+
 pub type GeneralResult<T> = std::result::Result<T, Box<dyn Error>>;
 
 pub type CallbackFn = Box<dyn Fn(GeneralResult<()>) + Send + Sync>;
@@ -96,20 +98,19 @@ impl HandleBuilder {
 
   /// Return `Err` if missing `tx` or `stop_tx`.
   pub fn build(self) -> GeneralResult<Handle> {
+    take!(self, timeout_ms);
+    take_option!(self, tx, stop_tx);
     Ok(Handle {
-      tx: self.tx.ok_or("missing tx")?,
-      stop_only: StopOnlyHandle {
-        stop_tx: self.stop_tx.ok_or("missing stop_tx")?,
-      },
-      timeout_ms: self.timeout_ms,
+      tx,
+      stop_only: StopOnlyHandle { stop_tx },
+      timeout_ms,
     })
   }
 
   /// Return `Err` if missing `stop_rx`.
   pub fn build_stop_only(self) -> GeneralResult<StopOnlyHandle> {
-    Ok(StopOnlyHandle {
-      stop_tx: self.stop_tx.ok_or("missing stop_tx")?,
-    })
+    take_option!(self, stop_tx);
+    Ok(StopOnlyHandle { stop_tx })
   }
 }
 
@@ -120,16 +121,16 @@ pub struct StopOnlyHandle {
 
 impl StopOnlyHandle {
   pub fn stop(self) {
-    let stop_tx = self.stop_tx;
-    tokio::spawn(async move { stop_tx.send(StopPayload::default()).await.ok() });
+    take!(self, stop_tx);
+    go! { stop_tx.send(StopPayload::default()).await.ok() }
   }
 
   pub fn stop_then<F>(self, callback: F)
   where
     F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
   {
-    let stop_tx = self.stop_tx;
-    tokio::spawn(async move {
+    take!(self, stop_tx);
+    go! {
       if stop_tx
         .send(StopPayload::with_callback(callback.clone()))
         .await
@@ -137,7 +138,7 @@ impl StopOnlyHandle {
       {
         callback(Err(Box::new(HandleError::ChannelClosed)));
       }
-    });
+    };
   }
 }
 
@@ -159,7 +160,7 @@ impl Handle {
 
   /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
   pub fn write(&self, data: Bytes) {
-    let tx = self.tx.clone();
+    clone!(self, tx);
     Self::inner_write(tx, data, self.timeout_ms, |_| {})
   }
 
@@ -168,14 +169,14 @@ impl Handle {
   where
     F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
   {
-    let tx = self.tx.clone();
+    clone!(self, tx);
     Self::inner_write(tx, data, self.timeout_ms, callback)
   }
 
   /// Override the default timeout.
   /// Write will be canceled if timeout, in this case you may need to increase the node's buffer.
   pub fn timed_write(&self, data: Bytes, timeout_ms: u64) {
-    let tx = self.tx.clone();
+    clone!(self, tx);
     Self::inner_write(tx, data, Some(timeout_ms), |_| {})
   }
 
@@ -193,7 +194,7 @@ impl Handle {
   where
     F: Fn(GeneralResult<()>) + Send + Clone + Sync + 'static,
   {
-    tokio::spawn(async move {
+    go! {
       if let Some(timeout_ms) = timeout_ms {
         tokio::select! {
           result = tx.send(WritePayload::with_data(data).callback(callback.clone())) => {
@@ -214,7 +215,7 @@ impl Handle {
           callback(Err(Box::new(HandleError::ChannelClosed)));
         }
       }
-    });
+    };
   }
 
   pub fn stop(self) {
