@@ -49,7 +49,7 @@ macro_rules! clone {
 /// Shorthand for `tokio::spawn`.
 #[macro_export]
 macro_rules! go {
-  ($($body:stmt)*) => {
+  ($($body:tt)*) => {
     tokio::spawn(async move {$($body)*});
   };
 }
