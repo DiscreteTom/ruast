@@ -1,4 +1,8 @@
-use rua::model::{GeneralResult, HandleBuilder, StopOnlyHandle, StopRx};
+use rua::{
+  go,
+  model::{GeneralResult, HandleBuilder, StopOnlyHandle, StopRx},
+  take, take_mut, take_option_mut,
+};
 use tokio::{net::TcpListener, sync::mpsc};
 
 use crate::node::WsNode;
@@ -39,15 +43,15 @@ impl<'a> WsListener<'a> {
 
   /// Return `Err` if bind address failed or mssing peer_handler.
   pub async fn spawn(self) -> GeneralResult<StopOnlyHandle> {
-    let mut peer_handler = self
-      .peer_handler
-      .ok_or("missing peer_handler when spawn WsListener")?;
+    take_option_mut!(self, peer_handler);
+
     let server = TcpListener::bind(self.addr).await?;
-    let peer_write_buffer = self.peer_write_buffer;
-    let mut stop_rx = self.stop_rx;
+
+    take!(self, peer_write_buffer);
+    take_mut!(self, stop_rx);
 
     // start ws listener
-    tokio::spawn(async move {
+    go! {
       loop {
         tokio::select! {
           Ok((stream, addr)) = server.accept() => {
@@ -60,7 +64,7 @@ impl<'a> WsListener<'a> {
           }
         }
       }
-    });
+    };
 
     Ok(self.handle)
   }

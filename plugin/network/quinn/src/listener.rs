@@ -2,7 +2,11 @@ use std::net::SocketAddr;
 
 use futures_util::StreamExt;
 use quinn::{Endpoint, ServerConfig};
-use rua::model::{GeneralResult, HandleBuilder, StopOnlyHandle, StopRx};
+use rua::{
+  go,
+  model::{GeneralResult, HandleBuilder, StopOnlyHandle, StopRx},
+  take, take_mut, take_option_mut,
+};
 use tokio::sync::mpsc;
 
 use crate::node::QuicNode;
@@ -50,17 +54,15 @@ impl<'a> QuicListener<'a> {
 
   /// Return `Err` if bind address failed or mssing peer_handler.
   pub async fn spawn(self) -> GeneralResult<StopOnlyHandle> {
-    let mut peer_handler = self
-      .peer_handler
-      .ok_or("missing peer_handler when spawn QuicListener")?;
+    take_option_mut!(self, peer_handler);
     let mut eb = Endpoint::builder();
     eb.listen(self.config);
     let (_, mut incoming) = eb.bind(&self.addr.parse::<SocketAddr>()?)?;
-    let peer_write_buffer = self.peer_write_buffer;
-    let mut stop_rx = self.stop_rx;
+    take!(self, peer_write_buffer);
+    take_mut!(self, stop_rx);
 
     // start ws listener
-    tokio::spawn(async move {
+    go! {
       loop {
         tokio::select! {
           conn = incoming.next() => {
@@ -81,7 +83,7 @@ impl<'a> QuicListener<'a> {
           }
         }
       }
-    });
+    };
 
     Ok(self.handle)
   }

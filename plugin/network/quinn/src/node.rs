@@ -3,7 +3,11 @@ use quinn::{
   crypto::rustls::TlsSession,
   generic::{RecvStream, SendStream},
 };
-use rua::model::{Handle, HandleBuilder, StopPayload, StopRx, StopTx, WriteRx};
+use rua::{
+  go,
+  model::{Handle, HandleBuilder, StopPayload, StopRx, StopTx, WriteRx},
+  take, take_mut,
+};
 use tokio::{io::AsyncReadExt, sync::mpsc};
 
 pub struct QuicNode {
@@ -50,16 +54,14 @@ impl QuicNode {
   }
 
   pub fn spawn(self) -> Handle {
-    let mut stop_rx = self.stop_rx;
-    let stop_tx = self.stop_tx;
-    let mut rx = self.rx;
+    take_mut!(self, stop_rx, rx);
+    take!(self, stop_tx);
     let (reader_stop_tx, mut reader_stop_rx) = mpsc::channel(1);
     let (writer_stop_tx, mut writer_stop_rx) = mpsc::channel(1);
-    let mut reader = self.receiver;
-    let mut writer = self.sender;
+    take_mut!(self, receiver, sender);
 
     // stopper thread
-    tokio::spawn(async move {
+    go! {
       if let Some(payload) = stop_rx.recv().await {
         reader_stop_tx.send(()).await.ok();
         writer_stop_tx.send(()).await.ok();
@@ -68,11 +70,11 @@ impl QuicNode {
       // else, all stop_tx are dropped, stop_rx is disabled
 
       // stop_rx is dropped, later stop_tx.send will throw ChannelClosed error.
-    });
+    };
 
     // reader thread
     if let Some(mut msg_handler) = self.msg_handler {
-      tokio::spawn(async move {
+      go! {
         let mut buffer = BytesMut::with_capacity(64);
 
         loop {
@@ -80,7 +82,7 @@ impl QuicNode {
             Some(()) = reader_stop_rx.recv() => {
               break
             }
-            b = reader.read_u8() => {
+            b = receiver.read_u8() => {
               match b {
                 Ok(b) => {
                   if b == b'\n' {
@@ -103,11 +105,11 @@ impl QuicNode {
         }
         // notify writer thread
         stop_tx.send(StopPayload::default()).await.ok();
-      });
+      };
     }
 
     // writer thread
-    tokio::spawn(async move {
+    go! {
       loop {
         tokio::select! {
           Some(()) = writer_stop_rx.recv() => {
@@ -116,8 +118,8 @@ impl QuicNode {
           payload = rx.recv() => {
             if let Some(payload) = payload {
               let result = async {
-                writer.write_all(&payload.data).await?;
-                writer.write_all(b"\n").await?;
+                sender.write_all(&payload.data).await?;
+                sender.write_all(b"\n").await?;
                 std::io::Result::Ok(())
               }
               .await;
@@ -133,8 +135,8 @@ impl QuicNode {
           }
         }
       }
-      writer.finish().await.ok(); // gracefully shutdown
-    });
+      sender.finish().await.ok(); // gracefully shutdown
+    };
 
     self.handle
   }
