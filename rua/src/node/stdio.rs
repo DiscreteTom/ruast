@@ -15,6 +15,12 @@ pub struct StdioNode {
   stop_rx: StopRx,
 }
 
+impl Default for StdioNode {
+  fn default() -> Self {
+    Self::new(16)
+  }
+}
+
 impl StdioNode {
   pub fn new(buffer: usize) -> Self {
     let (tx, rx) = mpsc::channel(buffer);
@@ -129,11 +135,5 @@ impl StdioNode {
     });
 
     self.handle
-  }
-}
-
-impl Default for StdioNode {
-  fn default() -> Self {
-    Self::new(16)
   }
 }

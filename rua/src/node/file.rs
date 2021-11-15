@@ -9,6 +9,12 @@ pub struct FileNode<'a> {
   stop_rx: StopRx,
 }
 
+impl<'a> Default for FileNode<'a> {
+  fn default() -> Self {
+    Self::new(16)
+  }
+}
+
 impl<'a> FileNode<'a> {
   pub fn new(buffer: usize) -> Self {
     let (tx, rx) = mpsc::channel(buffer);
@@ -78,11 +84,5 @@ impl<'a> FileNode<'a> {
       }
     });
     Ok(self.handle)
-  }
-}
-
-impl<'a> Default for FileNode<'a> {
-  fn default() -> Self {
-    Self::new(16)
   }
 }
