@@ -83,6 +83,7 @@ impl QuicNode {
               break
             }
             b = receiver.read_u8() => {
+              // TODO: replace `read_u8` with `read_to_end`
               match b {
                 Ok(b) => {
                   if b == b'\n' {
