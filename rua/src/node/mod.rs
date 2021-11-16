@@ -5,7 +5,7 @@ pub mod state;
 pub mod stdio;
 pub mod tail;
 pub mod tcp;
-pub mod timer;
+pub mod time;
 
 pub use broadcast::Broadcaster;
 pub use ctrlc::Ctrlc;
@@ -14,4 +14,4 @@ pub use state::StateNode;
 pub use stdio::StdioNode;
 pub use tail::TailNode;
 pub use tcp::{TcpListener, TcpNode};
-pub use timer::Lockstep;
+pub use time::Lockstep;
