@@ -5,7 +5,11 @@ use tokio::{
   time::{self, Instant},
 };
 
-use crate::{go, model::{GeneralResult, HandleBuilder, StopOnlyHandle, StopRx}, take, take_mut, take_option_mut};
+use crate::{
+  go,
+  model::{GeneralResult, HandleBuilder, StopOnlyHandle, StopRx},
+  take, take_mut, take_option_mut,
+};
 
 pub struct Lockstep {
   step_handler: Option<Box<dyn FnMut(u64) + Send>>,
@@ -49,6 +53,7 @@ impl Lockstep {
     self
   }
 
+  /// Return `Err` if missing `step_handler`.
   pub fn spawn(self) -> GeneralResult<StopOnlyHandle> {
     take_option_mut!(self, step_handler);
     take!(self, step_length_ms);
