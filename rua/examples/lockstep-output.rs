@@ -1,19 +1,14 @@
 use bytes::BytesMut;
 use clonesure::cc;
 use rua::node::{ctrlc::Ctrlc, lockstep::Lockstep, state::StateNode, stdio::StdioNode};
-use rua_random::RandomNode;
 
 #[tokio::main]
 pub async fn main() {
   let state = StateNode::with_state(BytesMut::new()).spawn();
 
-  // fill state with random bytes
-  let random = RandomNode::default()
-    .on_msg(cc!(|@state, msg| state.apply(move |buffer| buffer.extend_from_slice(&msg))))
-    .spawn()
-    .unwrap();
-
-  let stdio = StdioNode::default().spawn();
+  let stdio = StdioNode::default()
+    .on_input(cc!(|@state, msg| state.apply(move |buffer| buffer.extend_from_slice(&msg))))
+    .spawn();
 
   let ls = Lockstep::default()
     .on_step(cc!(|@state, @stdio, step| {
@@ -35,7 +30,6 @@ pub async fn main() {
     .on_signal(move || {
       ls.stop();
       stdio.stop();
-      random.stop();
     })
     .wait()
     .await
