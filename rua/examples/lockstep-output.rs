@@ -10,8 +10,8 @@ pub async fn main() {
     .on_input(cc!(|@state, msg| state.apply(move |buffer| buffer.extend_from_slice(&msg))))
     .spawn();
 
-  let ls = Ticker::default()
-    .on_step(cc!(|@state, @stdio, step| {
+  let ticker = Ticker::default()
+    .on_tick(cc!(|@state, @stdio, step| {
       state.apply(cc!(|@stdio, state| {
         let mut result = BytesMut::new();
         // append current step number
@@ -28,7 +28,7 @@ pub async fn main() {
 
   Ctrlc::default()
     .on_signal(move || {
-      ls.stop();
+      ticker.stop();
       stdio.stop();
     })
     .wait()

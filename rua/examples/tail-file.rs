@@ -12,8 +12,8 @@ pub async fn main() {
     .spawn()
     .await
     .expect("failed to write file");
-  let ls = Ticker::default()
-    .on_step(cc!(|@file, step| file.write(Bytes::from(step.to_string()))))
+  let ticker = Ticker::default()
+    .on_tick(cc!(|@file, step| file.write(Bytes::from(step.to_string()))))
     .spawn()
     .unwrap();
 
@@ -29,7 +29,7 @@ pub async fn main() {
     .on_signal(move || {
       stdio.stop();
       tail.stop();
-      ls.stop();
+      ticker.stop();
       file.stop();
     })
     .wait()

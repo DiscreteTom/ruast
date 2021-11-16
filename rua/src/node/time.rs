@@ -1,9 +1,6 @@
 use std::time::Duration;
 
-use tokio::{
-  sync::mpsc,
-  time::{self, Instant},
-};
+use tokio::{sync::mpsc, time};
 
 use crate::{
   go,
@@ -12,26 +9,26 @@ use crate::{
 };
 
 pub struct Ticker {
-  step_handler: Option<Box<dyn FnMut(u64) + Send>>,
-  step_length_ms: u64,
+  tick_handler: Option<Box<dyn FnMut(u64) + Send>>,
+  interval_ms: u64,
   stop_rx: StopRx,
   handle: StopOnlyHandle,
 }
 
 impl Default for Ticker {
   fn default() -> Self {
-    Self::with_step_length_ms(1000)
+    Self::with_interval(1000)
   }
 }
 
 impl Ticker {
-  pub fn with_step_length_ms(ms: u64) -> Self {
+  pub fn with_interval(ms: u64) -> Self {
     let (stop_tx, stop_rx) = mpsc::channel(1);
 
     Self {
       stop_rx,
-      step_handler: None,
-      step_length_ms: ms,
+      tick_handler: None,
+      interval_ms: ms,
       handle: HandleBuilder::default()
         .stop_tx(stop_tx)
         .build_stop_only()
@@ -43,32 +40,31 @@ impl Ticker {
     &self.handle
   }
 
-  pub fn step_length_ms(mut self, ms: u64) -> Self {
-    self.step_length_ms = ms;
+  pub fn interval_ms(mut self, ms: u64) -> Self {
+    self.interval_ms = ms;
     self
   }
 
-  pub fn on_step(mut self, f: impl FnMut(u64) + 'static + Send) -> Self {
-    self.step_handler = Some(Box::new(f));
+  pub fn on_tick(mut self, f: impl FnMut(u64) + 'static + Send) -> Self {
+    self.tick_handler = Some(Box::new(f));
     self
   }
 
-  /// Return `Err` if missing `step_handler`.
+  /// Return `Err` if missing `tick_handler`.
   pub fn spawn(self) -> GeneralResult<StopOnlyHandle> {
-    take_option_mut!(self, step_handler);
-    take!(self, step_length_ms);
+    take_option_mut!(self, tick_handler);
+    take!(self, interval_ms);
     take_mut!(self, stop_rx);
 
     go! {
       let mut current = 0;
-      let mut timeout = Instant::now() + Duration::from_millis(step_length_ms);
+      let mut timer = time::interval(Duration::from_millis(interval_ms));
 
       loop {
         tokio::select! {
-          _ = time::sleep_until(timeout) => {
-            (step_handler)(current);
+          _ = timer.tick() => {
+            (tick_handler)(current);
             current += 1;
-            timeout += Duration::from_millis(step_length_ms);
           }
           Some(payload) = stop_rx.recv() => {
             (payload.callback)(Ok(()));
