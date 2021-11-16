@@ -3,9 +3,9 @@ use std::{
   time::Duration,
 };
 
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::Bytes;
 use tokio::{
-  io::{AsyncReadExt, AsyncSeekExt},
+  io::{AsyncBufReadExt, AsyncSeekExt, BufReader},
   sync::mpsc,
   time,
 };
@@ -66,35 +66,28 @@ impl<'a> TailNode<'a> {
       .await?;
 
     // navigate to file end
-    file.seek(SeekFrom::End(-1)).await?;
+    file.seek(SeekFrom::End(0)).await?;
+    let mut lines = BufReader::new(file).lines();
 
     take_mut!(self, stop_rx);
     take!(self, check_interval_ms);
 
     // reader thread
     go! {
-      let mut buffer = BytesMut::with_capacity(64);
-
       loop {
         tokio::select! {
           Some(payload) = stop_rx.recv() => {
             (payload.callback)(Ok(()));
             break
           }
-          b = file.read_u8() => {
-            match b {
-              Ok(b) => {
-                if b == b'\n' {
-                  // handle msg
-                  (line_handler)(buffer.freeze());
-                  // reset buffer
-                  buffer = BytesMut::with_capacity(64);
-                } else if b != b'\r' {
-                  // append
-                  if buffer.len() == buffer.capacity() {
-                    buffer.reserve(64);
-                  }
-                  buffer.put_u8(b);
+          r = lines.next_line() => {
+            match r {
+              Ok(option) => {
+                if let Some(s) = option {
+                  (line_handler)(Bytes::from(s));
+                } else {
+                  // got file end, sleep for a while
+                  time::sleep(Duration::from_millis(check_interval_ms)).await;
                 }
               }
               Err(err) => {
