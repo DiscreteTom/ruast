@@ -13,7 +13,7 @@ pub async fn main() {
     .await
     .expect("failed to write file");
   let ticker = Ticker::default()
-    .on_tick(cc!(|@file, step| file.write(Bytes::from(step.to_string()))))
+    .on_tick(cc!(|@file, tick| file.write(Bytes::from(tick.to_string()))))
     .spawn()
     .unwrap();
 

@@ -11,11 +11,11 @@ pub async fn main() {
     .spawn();
 
   let ticker = Ticker::default()
-    .on_tick(cc!(|@state, @stdio, step| {
+    .on_tick(cc!(|@state, @stdio, tick| {
       state.apply(cc!(|@stdio, state| {
         let mut result = BytesMut::new();
-        // append current step number
-        result.extend_from_slice(&(step.to_string() + ":\n").into_bytes());
+        // append current tick number
+        result.extend_from_slice(&(tick.to_string() + ":\n").into_bytes());
         // append state
         result.extend_from_slice(state);
 
@@ -24,7 +24,7 @@ pub async fn main() {
       }))
     }))
     .spawn()
-    .expect("failed to start lockstep controller");
+    .expect("failed to start ticker");
 
   Ctrlc::default()
     .on_signal(move || {
