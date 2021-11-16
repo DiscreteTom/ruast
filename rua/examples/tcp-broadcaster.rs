@@ -15,7 +15,8 @@ pub async fn main() {
             // new message will be sent to the broadcaster
             cc!(|@bc, data| bc.write(data))
           )
-          .spawn())
+          .spawn()
+      )
     }))
     .spawn()
     .await

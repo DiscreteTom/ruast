@@ -5,8 +5,9 @@
 - `file-persistent.rs` shows how to work with many handles.
   - stdin => file
 - `tail-file.rs` shows how easy to write a `tail -f` application.
+  - random => file => stdout
 - `callback.rs` shows how to use callback functions to check whether a write is finished.
-  - stdin => file => stdout (if error)
+  - random => file => stdout
 - `lockstep-random.rs` shows how to interact with shared states, and how to realize lockstep output.
   - random => state
   - state => stdout (on step)
