@@ -1,6 +1,6 @@
 use bytes::BytesMut;
 use clonesure::cc;
-use rua::node::{ctrlc::Ctrlc, state::StateNode, stdio::StdioNode, time::Lockstep};
+use rua::node::{ctrlc::Ctrlc, state::StateNode, stdio::StdioNode, time::Ticker};
 
 #[tokio::main]
 pub async fn main() {
@@ -10,7 +10,7 @@ pub async fn main() {
     .on_input(cc!(|@state, msg| state.apply(move |buffer| buffer.extend_from_slice(&msg))))
     .spawn();
 
-  let ls = Lockstep::default()
+  let ls = Ticker::default()
     .on_step(cc!(|@state, @stdio, step| {
       state.apply(cc!(|@stdio, state| {
         let mut result = BytesMut::new();

@@ -11,20 +11,20 @@ use crate::{
   take, take_mut, take_option_mut,
 };
 
-pub struct Lockstep {
+pub struct Ticker {
   step_handler: Option<Box<dyn FnMut(u64) + Send>>,
   step_length_ms: u64,
   stop_rx: StopRx,
   handle: StopOnlyHandle,
 }
 
-impl Default for Lockstep {
+impl Default for Ticker {
   fn default() -> Self {
     Self::with_step_length_ms(1000)
   }
 }
 
-impl Lockstep {
+impl Ticker {
   pub fn with_step_length_ms(ms: u64) -> Self {
     let (stop_tx, stop_rx) = mpsc::channel(1);
 

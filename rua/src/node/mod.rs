@@ -14,4 +14,4 @@ pub use state::StateNode;
 pub use stdio::StdioNode;
 pub use tail::TailNode;
 pub use tcp::{TcpListener, TcpNode};
-pub use time::Lockstep;
+pub use time::Ticker;

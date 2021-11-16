@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use clonesure::cc;
-use rua::node::{ctrlc::Ctrlc, stdio::StdioNode, tail::TailNode, FileNode, Lockstep};
+use rua::node::{ctrlc::Ctrlc, stdio::StdioNode, tail::TailNode, FileNode, Ticker};
 
 #[tokio::main]
 pub async fn main() {
@@ -12,7 +12,7 @@ pub async fn main() {
     .spawn()
     .await
     .expect("failed to write file");
-  let ls = Lockstep::default()
+  let ls = Ticker::default()
     .on_step(cc!(|@file, step| file.write(Bytes::from(step.to_string()))))
     .spawn()
     .unwrap();
