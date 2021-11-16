@@ -15,7 +15,8 @@ pub async fn main() {
       bc.add_target(
         ws_node
           .on_msg(cc!(|@bc, data| bc.write(data)))
-          .spawn());
+          .spawn()
+      );
     }))
     .spawn()
     .await
