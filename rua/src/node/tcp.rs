@@ -1,8 +1,8 @@
 use std::net::SocketAddr;
 
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::Bytes;
 use tokio::{
-  io::{AsyncReadExt, AsyncWriteExt},
+  io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
   net::{self, TcpStream},
   sync::mpsc,
 };
@@ -136,7 +136,7 @@ impl TcpNode {
 
     let (reader_stop_tx, mut reader_stop_rx) = mpsc::channel(1);
     let (writer_stop_tx, mut writer_stop_rx) = mpsc::channel(1);
-    let (mut reader, mut writer) = self.socket.into_split();
+    let (reader, mut writer) = self.socket.into_split();
 
     // stopper thread
     go! {
@@ -153,27 +153,20 @@ impl TcpNode {
     // reader thread
     if let Some(mut input_handler) = self.input_handler {
       go! {
-        let mut buffer = BytesMut::with_capacity(64);
+        let mut lines = BufReader::new(reader).lines();
 
         loop {
           tokio::select! {
             Some(()) = reader_stop_rx.recv() => {
               break
             }
-            b = reader.read_u8() => {
-              match b {
-                Ok(b) => {
-                  if b == b'\n' {
-                    // handle msg
-                    (input_handler)(buffer.freeze());
-                    // reset buffer
-                    buffer = BytesMut::with_capacity(64);
-                  } else if b != b'\r' {
-                    // append
-                    if buffer.len() == buffer.capacity() {
-                      buffer.reserve(64);
-                    }
-                    buffer.put_u8(b);
+            r = lines.next_line() => {
+              match r {
+                Ok(option) => {
+                  if let Some(s) = option {
+                    (input_handler)(Bytes::from(s));
+                  } else {
+                    break
                   }
                 }
                 Err(_) => break,
