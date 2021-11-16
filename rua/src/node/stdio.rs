@@ -81,6 +81,7 @@ impl StdioNode {
             Some(()) = reader_stop_rx.recv() => {
               break
             }
+            // `next_line` will discard `\n` or `\r`
             r = lines.next_line() => {
               match r {
                 Ok(option) => {
