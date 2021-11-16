@@ -1,6 +1,6 @@
 use bytes::BytesMut;
 use clonesure::cc;
-use rua::node::{ctrlc::Ctrlc, lockstep::Lockstep, state::StateNode, stdio::StdioNode};
+use rua::node::{ctrlc::Ctrlc, state::StateNode, stdio::StdioNode, timer::Lockstep};
 
 #[tokio::main]
 pub async fn main() {
