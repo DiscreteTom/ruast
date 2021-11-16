@@ -1,6 +1,10 @@
 use tokio::{io::AsyncWriteExt, sync::mpsc};
 
-use crate::{go, model::{GeneralResult, Handle, HandleBuilder, StopRx, WriteRx}, take_mut, take_option};
+use crate::{
+  go,
+  model::{GeneralResult, Handle, HandleBuilder, StopRx, WriteRx},
+  take_mut, take_option,
+};
 
 pub struct FileNode<'a> {
   handle: Handle,
@@ -46,7 +50,6 @@ impl<'a> FileNode<'a> {
 
     let mut file = tokio::fs::OpenOptions::new()
       .create(true)
-      .write(true)
       .append(true)
       .open(filename)
       .await?;
